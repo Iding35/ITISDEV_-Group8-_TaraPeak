@@ -118,3 +118,5 @@ document.addEventListener("DOMContentLoaded", () => {
     loadMountain();
 
 });
+
+export {};
