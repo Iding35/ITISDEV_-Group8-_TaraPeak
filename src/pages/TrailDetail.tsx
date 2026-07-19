@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchMountain, type Mountain } from '../api';
+import Navbar from '../components/Navbar';
 
 export default function TrailDetail() {
   const { id } = useParams<{ id: string }>();
@@ -23,28 +24,7 @@ export default function TrailDetail() {
 
   return (
     <div className="bg-background text-gray-800 min-h-screen">
-      <header className="bg-surface/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-10">
-            <h1 className="text-3xl font-bold text-primary">TaraPeak</h1>
-            <nav className="hidden md:flex gap-8">
-              <a href="#" className="text-gray-500 hover:text-primary transition">
-                Dashboard
-              </a>
-              <Link to="/" className="text-primary border-b-2 border-primary pb-1 font-semibold">
-                Map View
-              </Link>
-              <a href="#" className="text-gray-500 hover:text-primary transition">
-                Plans
-              </a>
-            </nav>
-          </div>
-          <div className="flex items-center gap-5">
-            <span className="material-symbols-outlined cursor-pointer">notifications</span>
-            <span className="material-symbols-outlined cursor-pointer">account_circle</span>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main className="max-w-7xl mx-auto px-8 py-10">
         <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline mb-8">
@@ -77,11 +57,11 @@ export default function TrailDetail() {
               </div>
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <p className="text-sm uppercase tracking-wider text-gray-500">Distance</p>
-                <h3 className="text-3xl font-bold text-primary mt-3">{mountain.distance}</h3>
+                <h3 className="text-3xl font-bold text-primary mt-3">{mountain.distance} km</h3>
               </div>
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <p className="text-sm uppercase tracking-wider text-gray-500">Estimated Time</p>
-                <h3 className="text-3xl font-bold text-primary mt-3">{mountain.estimated_time}</h3>
+                <h3 className="text-3xl font-bold text-primary mt-3">{mountain.estimated_time} hrs</h3>
               </div>
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <p className="text-sm uppercase tracking-wider text-gray-500">Total Hikers</p>
@@ -130,11 +110,11 @@ export default function TrailDetail() {
                     </tr>
                     <tr className="border-b">
                       <td className="font-semibold p-4">Distance</td>
-                      <td className="p-4">{mountain.distance}</td>
+                      <td className="p-4">{mountain.distance} km</td>
                     </tr>
                     <tr className="border-b">
                       <td className="font-semibold p-4">Estimated Time</td>
-                      <td className="p-4">{mountain.estimated_time}</td>
+                      <td className="p-4">{mountain.estimated_time} hrs</td>
                     </tr>
                     <tr>
                       <td className="font-semibold p-4">Total Hikers</td>

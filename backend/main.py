@@ -48,8 +48,8 @@ def get_mountains(search: str = Query(None)):
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     if search:
-        query = "SELECT * FROM mountains WHERE mountain_name = %s"
-        cursor.execute(query, (search,))
+        query = "SELECT * FROM mountains WHERE mountain_name ILIKE %s"
+        cursor.execute(query, (f"%{search}%",))
     else:
         cursor.execute("SELECT * FROM mountains")
 

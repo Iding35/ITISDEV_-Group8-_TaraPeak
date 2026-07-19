@@ -6,7 +6,7 @@
 - PostgreSQL, either:
   - Docker Desktop with WSL2 working (`docker compose up -d`), or
   - PostgreSQL installed natively on your machine
-- Node.js (only needed to serve the frontend with `npx serve`)
+- Node.js (to run the frontend dev server)
 
 ## 1. Database
 
@@ -57,15 +57,23 @@ Serves at `http://localhost:8000`. Tables and seed data (3 mountains) are create
 
 ## 3. Frontend
 
-Static HTML/JS, no build step. Serve the project root so relative paths resolve correctly:
+React + TypeScript + Tailwind, built with Vite. From the project root:
 
 ```
-npx serve . -l 1234
+npm install
+npm run dev
 ```
 
-Then open `http://localhost:1234/mountain.html`.
+Opens at `http://localhost:5173` (or the port shown in the terminal).
 
-Note: `mountain.js` / `mountain.ts` have `API_URL` hardcoded to `http://127.0.0.1:8000`. Keep the backend on port 8000, or update that constant if you run it elsewhere.
+Note: `src/api.ts` has `API_URL` hardcoded to `http://127.0.0.1:8000`. Keep the backend on port 8000, or update that constant if you run it elsewhere.
+
+To build for production:
+
+```
+npm run build
+npm run preview
+```
 
 ## Notes
 
