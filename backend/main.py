@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import os
 
 app = FastAPI()
@@ -13,35 +14,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_PATH = 'tarapeak.db'
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+def get_connection():
+    if DATABASE_URL:
+        return psycopg2.connect(DATABASE_URL)
+    return psycopg2.connect(
+        host=os.environ.get("PGHOST", "localhost"),
+        port=os.environ.get("PGPORT", "5432"),
+        dbname=os.environ.get("PGDATABASE", "tarapeak"),
+        user=os.environ.get("PGUSER", "postgres"),
+        password=os.environ.get("PGPASSWORD", "postgres"),
+    )
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
-    with open('tarapeak.sql', 'r') as f:
-        cursor.executescript(f.read())
-    conn.commit()
+    cursor.execute("SELECT to_regclass('public.mountains')")
+    already_initialized = cursor.fetchone()[0] is not None
+    if not already_initialized:
+        with open('tarapeak.sql', 'r') as f:
+            cursor.execute(f.read())
+        conn.commit()
+    cursor.close()
     conn.close()
 
 # Initialize DB on startup if missing
-if not os.path.exists(DB_PATH):
-    init_db()
+init_db()
 
 @app.get("/get")
 def get_mountains(search: str = Query(None)):
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
     if search:
-        query = "SELECT * FROM mountain WHERE name = ?"
-        cursor.execute(query, (search))
+        query = "SELECT * FROM mountains WHERE mountain_name = %s"
+        cursor.execute(query, (search,))
     else:
-        cursor.execute("SELECT * FROM mountain")
-        
+        cursor.execute("SELECT * FROM mountains")
+
     rows = cursor.fetchall()
     conn.close()
-    
+
     return [dict(row) for row in rows]
 
 if __name__ == "__main__":

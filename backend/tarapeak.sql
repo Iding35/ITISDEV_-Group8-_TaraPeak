@@ -1,7 +1,5 @@
-CREATE DATABASE IF NOT EXISTS tarapeak;
-USE tarapeak;
 CREATE TABLE IF NOT EXISTS users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id SERIAL PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
     email VARCHAR(50) NOT NULL,
@@ -11,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS mountains (
-    mountain_id INT AUTO_INCREMENT PRIMARY KEY,
+    mountain_id SERIAL PRIMARY KEY,
     mountain_name VARCHAR(50) NOT NULL,
     location VARCHAR(200),
     description VARCHAR(200),
@@ -26,7 +24,7 @@ CREATE TABLE IF NOT EXISTS mountains (
 
 
 CREATE TABLE IF NOT EXISTS weather_forecasts (
-    weather_id INT AUTO_INCREMENT PRIMARY KEY,
+    weather_id SERIAL PRIMARY KEY,
     mountain_id INT,
     hiking_date DATE,
     temperature DECIMAL(3,1),
@@ -36,7 +34,7 @@ CREATE TABLE IF NOT EXISTS weather_forecasts (
 );
 
 CREATE TABLE IF NOT EXISTS plans (
-    plan_id INT AUTO_INCREMENT PRIMARY KEY,
+    plan_id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     mountain_id INT NOT NULL,
     date DATE NOT NULL,
@@ -45,7 +43,7 @@ CREATE TABLE IF NOT EXISTS plans (
 );
 
 CREATE TABLE IF NOT EXISTS gear_recommendations (
-    gear_id INT AUTO_INCREMENT PRIMARY KEY,
+    gear_id SERIAL PRIMARY KEY,
     plan_id INT NOT NULL,
     gear_name VARCHAR(50),
     is_required BOOLEAN DEFAULT TRUE,
@@ -53,14 +51,14 @@ CREATE TABLE IF NOT EXISTS gear_recommendations (
 );
 
 CREATE TABLE IF NOT EXISTS trail_reports (
-    report_id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id SERIAL PRIMARY KEY,
     mountain_id INT NOT NULL,
     user_id INT NOT NULL,
     report_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     report_status VARCHAR(20),
     report_description VARCHAR(200),
     CONSTRAINT trail_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id),
-	CONSTRAINT trail_fk_users FOREIGN KEY (user_id) REFERENCES users(user_id)
+    CONSTRAINT trail_fk_users FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
 
@@ -113,5 +111,3 @@ INSERT INTO mountains (
     'Cold temperatures, steep ascents, rapidly changing weather',
     100
 );
-
-SELECT * FROM mountains;
