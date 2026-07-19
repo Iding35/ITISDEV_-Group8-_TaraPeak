@@ -55,6 +55,8 @@ python main.py
 
 Serves at `http://localhost:8000`. Tables and seed data (3 mountains) are created automatically on first run.
 
+Once the venv exists and env vars are set (or match the defaults), you can also start the backend from the project root with `npm run dev:backend`.
+
 ## 3. Frontend
 
 React + TypeScript + Tailwind, built with Vite. From the project root:
@@ -64,7 +66,7 @@ npm install
 npm run dev
 ```
 
-Opens at `http://localhost:5173` (or the port shown in the terminal).
+Opens at `http://localhost:12345` (configured in `vite.config.ts`).
 
 Note: `src/api.ts` has `API_URL` hardcoded to `http://127.0.0.1:8000`. Keep the backend on port 8000, or update that constant if you run it elsewhere.
 
@@ -74,6 +76,16 @@ To build for production:
 npm run build
 npm run preview
 ```
+
+## Running both at once
+
+Once each has been set up individually at least once (venv created, deps installed, database created), you can start both frontend and backend together from the project root:
+
+```
+npm run dev:all
+```
+
+This assumes your Postgres connection matches the defaults in `main.py` (`localhost:5432`, db `tarapeak`, user/password `postgres`). If you need different `PG*` values, set them in your shell before running, or just run `npm run dev` and `npm run dev:backend` in two separate terminals.
 
 ## Notes
 
