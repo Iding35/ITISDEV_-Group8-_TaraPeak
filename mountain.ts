@@ -43,7 +43,7 @@ function renderMountains(mountains: Mountain[]) {
                         <h3 class="font-headline-md text-headline-md text-primary">${mountain.mountain_name}</h3>
                         <p class="font-label-md text-label-md text-on-surface-variant">${mountain.location}</p>
                     </div>
-                    <a href="mountain_details.html?id=${mountain.mountain_id}" class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">arrow_forward</a>
+                    <a href="trail-detail.html?id=${mountain.mountain_id}" class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">arrow_forward</a>
                 </div>
                 <div class="grid grid-cols-2 gap-base pt-2">
                     <div class="bg-surface-container-low p-sm rounded-lg">
