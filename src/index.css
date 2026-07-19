@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.trail-card:hover .trail-image {
+  transform: scale(1.05);
+}
+
+.biophilic-gradient {
+  background: linear-gradient(135deg, rgba(45, 90, 39, 0.03) 0%, rgba(250, 249, 245, 1) 100%);
+}

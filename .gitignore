@@ -5,3 +5,5 @@ venv/
 node_modules/
 .env
 tarapeak.db
+dist/
+*.tsbuildinfo
