@@ -54,9 +54,31 @@ def get_mountains(search: str = Query(None)):
         cursor.execute("SELECT * FROM mountains")
 
     rows = cursor.fetchall()
+
+    cursor.close()
     conn.close()
 
     return [dict(row) for row in rows]
+
+@app.get("/mountains/{mountain_id}")
+def get_mountain(mountain_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute(
+        "SELECT * FROM mountains WHERE mountain_id = %s",
+        (mountain_id,)
+    )
+
+    mountain = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if not mountain:
+        return {"error": "Mountain not found"}
+
+    return dict(mountain)
 
 if __name__ == "__main__":
     import uvicorn
