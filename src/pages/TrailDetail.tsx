@@ -17,11 +17,6 @@ import {
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 
-function tomorrowIso(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
 
 /** Renders **bold** segments and preserves line breaks from AI text responses. */
 function AnalysisText({ text }: { text: string }) {
@@ -221,7 +216,7 @@ function SavePlanSection({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saveStatus === 'saving'}
+                disabled={saveStatus === 'saving' || !date}
                 className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
               >
                 {saveStatus === 'saving' ? 'Saving…' : 'Save Plan'}
@@ -239,10 +234,12 @@ function RouteSection({
   mountain,
   selectedWaypoint,
   onSelectWaypoint,
+  date,
 }: {
   mountain: Mountain;
   selectedWaypoint: Waypoint | null;
   onSelectWaypoint: (wp: Waypoint) => void;
+  date: string;
 }) {
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [loadingWaypoints, setLoadingWaypoints] = useState(true);
@@ -281,7 +278,7 @@ function RouteSection({
   const sortedWaypoints = [...waypoints].sort((a, b) => {
     const diffA = difficultyWeight[a.difficulty?.toLowerCase() || ''] || 99;
     const diffB = difficultyWeight[b.difficulty?.toLowerCase() || ''] || 99;
-    
+
     if (diffA !== diffB) {
       return diffA - diffB;
     }
@@ -324,11 +321,10 @@ function RouteSection({
                 <li
                   key={w.waypoint_id}
                   onClick={() => onSelectWaypoint(w)}
-                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
-                      : 'border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
+                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${isSelected
+                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
+                    : 'border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-sm'
+                    }`}
                 >
                   <input
                     type="radio"
@@ -384,7 +380,7 @@ function RouteSection({
         )}
       </div>
 
-  
+
       <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div>
@@ -403,8 +399,9 @@ function RouteSection({
             <button
               type="button"
               onClick={handleOptimize}
-              disabled={loadingPlan}
+              disabled={loadingPlan || !selectedWaypoint || !date}
               className="shrink-0 rounded-xl bg-primary px-4 py-2.5 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+              title={(!selectedWaypoint || !date) ? "Please select a checkpoint and hiking date to generate an AI pacing plan." : undefined}
             >
               {loadingPlan ? 'Optimizing…' : 'Generate AI Pacing Plan'}
             </button>
@@ -418,6 +415,12 @@ function RouteSection({
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             Working out the best pacing plan…
           </div>
+        )}
+
+        {(!selectedWaypoint || !date) && !plan && (
+          <p className="text-gray-500 text-sm mt-2">
+            Please select a checkpoint and hiking date to generate an AI pacing plan.
+          </p>
         )}
 
         {plan && (
@@ -505,7 +508,7 @@ export default function TrailDetail() {
   const { id } = useParams<{ id: string }>();
   const [mountain, setMountain] = useState<Mountain | null>(null);
   const [loading, setLoading] = useState(true);
-  const [plannedDate, setPlannedDate] = useState(tomorrowIso());
+  const [plannedDate, setPlannedDate] = useState('');
   const [selectedWaypoint, setSelectedWaypoint] = useState<Waypoint | null>(null);
 
   useEffect(() => {
@@ -549,7 +552,7 @@ export default function TrailDetail() {
               <h2 className="text-2xl font-semibold text-primary mb-4">Description</h2>
               <p className="leading-8 text-gray-700">{mountain.description}</p>
             </section>
-            
+
             <section className="mt-8">
 
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -572,13 +575,6 @@ export default function TrailDetail() {
               </div>
             </section>
 
-            <section className="mt-10">
-              <RouteSection
-                mountain={mountain}
-                selectedWaypoint={selectedWaypoint}
-                onSelectWaypoint={setSelectedWaypoint}
-              />
-            </section>
 
             <section className="mt-10">
               <SavePlanSection
@@ -589,28 +585,37 @@ export default function TrailDetail() {
               />
             </section>
 
+            <section className="mt-10">
+              <RouteSection
+                mountain={mountain}
+                selectedWaypoint={selectedWaypoint}
+                onSelectWaypoint={setSelectedWaypoint}
+                date={plannedDate}
+              />
+            </section>
+
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
               <AIAnalysisCard
                 title="AI Difficulty Analysis"
                 icon="trending_up"
                 buttonLabel="Analyze Difficulty"
-                disabled={!selectedWaypoint}
-                disabledHint="Select an available trail checkpoint first to run difficulty analysis."
+                disabled={!selectedWaypoint || !plannedDate}
+                disabledHint="Select a checkpoint and hiking date first to run difficulty analysis."
                 fetcher={() => fetchDifficultyAnalysis(mountain.mountain_id)}
               />
               <AIAnalysisCard
                 title="AI Safety Analysis"
                 icon="health_and_safety"
-                buttonLabel={`Analyze Safety for ${plannedDate}`}
-                disabled={!selectedWaypoint}
-                disabledHint="Select an available trail checkpoint first to run safety analysis."
+                buttonLabel={plannedDate ? `Analyze Safety for ${plannedDate}` : 'Analyze Safety'}
+                disabled={!selectedWaypoint || !plannedDate}
+                disabledHint="Select a checkpoint and hiking date first to run safety analysis."
                 fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, plannedDate)}
               />
             </section>
 
             <TrailReportsSection mountainId={mountain.mountain_id} />
 
-            
+
           </>
         )}
 
