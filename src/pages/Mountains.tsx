@@ -131,14 +131,13 @@ export default function Mountains() {
     <div className="min-h-screen bg-surface text-on-surface">
       <Navbar />
       <main className="max-w-7xl mx-auto px-margin-desktop pt-lg pb-32 md:pb-lg">
-        <section className="mb-xl">
+        <section className="mb-8">
           <div className="flex flex-col gap-base">
-            <h1 className="font-display-lg text-display-lg text-primary leading-tight">
-              Explore the <span className="text-secondary">Ecosystem</span>
+            <h1 className="font-display-lg text-display-lg text-primary animated-text leading-tight">
+              Where are you hiking next?
             </h1>
-            <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
-              Browse trails across Benguet's mountains. See difficulty, distance, terrain, and hazards for
-              every hike, so you know what you're getting into before you go.
+            <p className="font-body-lg text-body-lg text-on-surface-variant max-w-none">
+              Explore Benguet's mountains with detailed trail information, including difficulty, elevation, terrain, and potential hazards.
             </p>
           </div>
         </section>
@@ -153,7 +152,7 @@ export default function Mountains() {
             </span>
             <input
               className="w-full pl-12 pr-12 py-3 bg-surface-container-lowest border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-shadow font-body-md"
-              placeholder="Search trails by ecosystem type..."
+              placeholder="Search mountain by name..."
               aria-label="Search trails"
               type="text"
               value={search}

@@ -52,3 +52,35 @@
     animation: none;
   }
 }
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-text {
+  background: linear-gradient(
+    90deg, 
+    var(--color-secondary, #2d5a27), 
+    var(--color-primary, #10b981), 
+    var(--color-secondary, #2d5a27)
+  );
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: gradient-shift 4s ease infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-text {
+    animation: none;
+  }
+}
