@@ -46,7 +46,7 @@ def get_connection():
         port=os.environ.get("PGPORT", "5432"),
         dbname=os.environ.get("PGDATABASE", "tarapeak"),
         user=os.environ.get("PGUSER", "postgres"),
-        password=os.environ.get("PGPASSWORD", "postgres123"),
+        password=os.environ.get("PGPASSWORD", "postgres"),
     )
 
 
