@@ -1,10 +1,19 @@
 import os
 from typing import Optional
 
+import bcrypt
 import psycopg2
 import psycopg2.extras
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
+
+SEED_USER_EMAILS = [
+    "alex.rivera@example.com",
+    "maria.santos@example.com",
+    "john.doe@example.com",
+    "elena.cruz@example.com",
+    "ramon.reyes@example.com",
+]
 
 WEATHER_SEED_SQL = """
 INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed) VALUES
@@ -81,6 +90,19 @@ def init_db():
             END IF;
         END $$;
     """)
+
+    # Early seed data stored these five demo accounts' passwords as plaintext
+    # instead of bcrypt hashes, which made login() crash (bcrypt.checkpw
+    # rejects non-hash input). Repair any database seeded before that fix.
+    cursor.execute(
+        "SELECT user_id, password FROM users WHERE email = ANY(%s)",
+        (SEED_USER_EMAILS,),
+    )
+    for user_id, password in cursor.fetchall():
+        if not password.startswith("$2"):
+            fixed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+            cursor.execute("UPDATE users SET password = %s WHERE user_id = %s", (fixed, user_id))
+    conn.commit()
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS route_waypoints (

@@ -147,12 +147,13 @@ INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, lon
 (3, 3, 'Akiki Trail', 'Known as the "Killer Trail", Akiki is recommended for experienced hikers due to its steep ascents and multi-day trek.', 120.8992, 16.5975, 2260, 'Hard', 14.0, 20.4),
 (3, 4, 'Ambaguio Trail', 'A less frequently used route approaching Mount Pulag from Nueva Vizcaya, known for its long forest sections.', 121.0564, 16.5794, 2150, 'Hard', 24.0, 16.0);
 
+-- Passwords below are bcrypt hashes of: pass1234, pass5678, passabcd, passwxyz, pass8765 (in order)
 INSERT INTO users (first_name, last_name, email, password, role) VALUES
-('Alex', 'Rivera', 'alex.rivera@example.com', 'pass1234', 'user'),
-('Maria', 'Santos', 'maria.santos@example.com', 'pass5678', 'user'),
-('John', 'Doe', 'john.doe@example.com', 'passabcd', 'user'),
-('Elena', 'Cruz', 'elena.cruz@example.com', 'passwxyz', 'user'),
-('Ramon', 'Reyes', 'ramon.reyes@example.com', 'pass8765', 'user');
+('Alex', 'Rivera', 'alex.rivera@example.com', '$2b$12$U142o1R5v9EYyPQ5eBMtLuflnt/G832bpDLJGN7sjdbMf/At8ZSCu', 'user'),
+('Maria', 'Santos', 'maria.santos@example.com', '$2b$12$EY4bVXmsJ94o5nOTlMB9Ku61aH1ryG7B78a6lQnNb1Sy6OyNpuBua', 'user'),
+('John', 'Doe', 'john.doe@example.com', '$2b$12$XAN4i.zDasHrQ1L5GP.zV.IgBbFzcVb.AnA07picJ8srjSsXMRVnG', 'user'),
+('Elena', 'Cruz', 'elena.cruz@example.com', '$2b$12$ohavHqkSIE7eXgC70vtPbuGZ4.c8Vv/EvHbXjK6jInWXb4x830oum', 'user'),
+('Ramon', 'Reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'user');
 
 INSERT INTO trail_reports (mountain_id, waypoint_id, user_id, rating, condition, comment, created_at) VALUES
 -- Mount Ulap Reports
