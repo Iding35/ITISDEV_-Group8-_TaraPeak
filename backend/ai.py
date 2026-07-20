@@ -38,12 +38,12 @@ def analyze_difficulty(mountain: dict) -> str:
         "and one concrete tip to manage the difficulty. Do not just repeat the raw stats back verbatim."
     )
     user_prompt = (
-        f"Mountain: {mountain['mountain_name']} ({mountain['location']})\n"
-        f"Listed difficulty: {mountain['difficulty']}\n"
-        f"Distance: {mountain['distance']} km\n"
-        f"Estimated time: {mountain['estimated_time']} hours\n"
-        f"Terrain: {mountain['terrain']}\n"
-        f"Known hazards: {mountain['hazards']}\n"
+        f"Mountain: {mountain.get('mountain_name', '')} ({mountain.get('location', '')})\n"
+        f"Listed difficulty: {mountain.get('difficulty', '')}\n"
+        f"Distance: {mountain.get('distance', '')} km\n"
+        f"Estimated time: {mountain.get('estimated_time', '')} hours\n"
+        f"Terrain: {mountain.get('terrain', '')}\n"
+        f"Known hazards: {mountain.get('hazards', '')}\n"
     )
     return _chat(system_prompt, user_prompt)
 
@@ -58,14 +58,14 @@ def analyze_safety(mountain: dict, weather: Optional[dict]) -> str:
     weather_line = "No weather forecast is available for the selected date."
     if weather:
         weather_line = (
-            f"Forecast for {weather['hiking_date']}: {weather['temperature']}C, "
-            f"{weather['humidity']}% humidity, {weather['wind_speed']} km/h wind."
+            f"Forecast for {weather.get('hiking_date')}: {weather.get('temperature')}C, "
+            f"{weather.get('humidity')}% humidity, {weather.get('wind_speed')} km/h wind."
         )
     user_prompt = (
-        f"Mountain: {mountain['mountain_name']} ({mountain['location']})\n"
-        f"Difficulty: {mountain['difficulty']}\n"
-        f"Terrain: {mountain['terrain']}\n"
-        f"Known hazards: {mountain['hazards']}\n"
+        f"Mountain: {mountain.get('mountain_name', '')} ({mountain.get('location', '')})\n"
+        f"Difficulty: {mountain.get('difficulty', '')}\n"
+        f"Terrain: {mountain.get('terrain', '')}\n"
+        f"Known hazards: {mountain.get('hazards', '')}\n"
         f"{weather_line}\n"
     )
     return _chat(system_prompt, user_prompt)
@@ -79,16 +79,20 @@ def optimize_route(mountain: dict, waypoints: list) -> str:
         "suggested start time, a rough time budget between each waypoint, and 1-2 notes on where to be "
         "cautious (steep elevation gain between waypoints, etc). Keep it concise and practical."
     )
+    
     waypoint_lines = "\n".join(
-        f"{w['sequence_order']}. {w['name']} — {w['distance_from_start_km']} km from start, "
-        f"{w['elevation_m']}m elevation. {w['description']}"
+        f"{w['sequence_order']}. {w['name']} — {w.get('distance_from_start_km', 0)} km from start, "
+        f"{w.get('elevation_m', 0)}m elevation. {w.get('description', '')}"
         for w in waypoints
     )
+    
+    total_dist = waypoints[-1].get('distance_from_start_km', mountain.get('distance', 'N/A')) if waypoints else mountain.get('distance', 'N/A')
+    
     user_prompt = (
-        f"Mountain: {mountain['mountain_name']}\n"
-        f"Total distance: {w['distance_from_start_km']} km\n"
-        f"Estimated total time: {w['estimated_time']} hours\n"
-        f"Difficulty: {w['difficulty']}\n"
+        f"Mountain: {mountain.get('mountain_name', '')}\n"
+        f"Total distance: {total_dist} km\n"
+        f"Estimated total time: {mountain.get('estimated_time', 'N/A')} hours\n"
+        f"Difficulty: {mountain.get('difficulty', 'N/A')}\n"
         f"Waypoints in order:\n{waypoint_lines}\n"
     )
     return _chat(system_prompt, user_prompt)

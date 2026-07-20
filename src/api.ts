@@ -180,28 +180,32 @@ export async function fetchWaypoints(mountainId: number): Promise<Waypoint[]> {
 }
 
 export async function fetchDifficultyAnalysis(mountainId: number): Promise<string> {
-  const response = await fetch(`${API_URL}/ai/difficulty/${mountainId}`, { method: 'POST' });
-  if (!response.ok) throw await extractError(response, 'AI difficulty analysis failed');
-  const data = await response.json();
+   const res = await fetch(`${API_URL}/ai/difficulty/${mountainId}`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed' }));
+    throw new Error(err.detail || 'Difficulty analysis failed');
+  }
+  const data = await res.json();
   return data.analysis;
 }
 
-export async function fetchSafetyAnalysis(mountainId: number, hikingDate?: string): Promise<string> {
-  const url = hikingDate
-    ? `${API_URL}/ai/safety/${mountainId}?date=${hikingDate}`
-    : `${API_URL}/ai/safety/${mountainId}`;
-  const response = await fetch(url, { method: 'POST' });
-  if (!response.ok) throw await extractError(response, 'AI safety analysis failed');
-  const data = await response.json();
+export async function fetchSafetyAnalysis(mountainId: number, date?: string): Promise<string> {
+  const res = await fetch(`${API_URL}/ai/difficulty/${mountainId}`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed' }));
+    throw new Error(err.detail || 'Safety analysis failed');
+  }
+  const data = await res.json();
   return data.analysis;
 }
 
-export async function fetchRouteOptimization(
-  mountainId: number,
-): Promise<{ waypoints: Waypoint[]; plan: string }> {
-  const response = await fetch(`${API_URL}/ai/route-optimization/${mountainId}`, { method: 'POST' });
-  if (!response.ok) throw await extractError(response, 'AI route optimization failed');
-  return response.json();
+export async function fetchRouteOptimization(mountainId: number): Promise<{ plan: string }> {
+  const res = await fetch(`${API_URL}/ai/route-optimization/${mountainId}`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed' }));
+    throw new Error(err.detail || 'Route optimization failed');
+  }
+  return res.json();
 }
 
 export async function fetchTrailReports(mountainId: number): Promise<TrailReport[]> {
