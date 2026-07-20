@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 import ai
 from auth import get_current_user, router as auth_router
-from db import get_connection, init_db
+from db import get_cached_analysis, get_connection, init_db, save_cached_analysis
 
 app = FastAPI()
 
@@ -196,16 +196,28 @@ def delete_plan(plan_id: int, current_user: dict = Depends(get_current_user)):
 @app.post("/ai/difficulty/{mountain_id}")
 def ai_difficulty(mountain_id: int):
     mountain = fetch_mountain(mountain_id)
+
+    cached = get_cached_analysis(mountain_id, "difficulty")
+    if cached is not None:
+        return {"mountain_id": mountain_id, "analysis": cached, "cached": True}
+
     try:
         analysis = ai.analyze_difficulty(mountain)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
-    return {"mountain_id": mountain_id, "analysis": analysis}
+
+    save_cached_analysis(mountain_id, "difficulty", analysis)
+    return {"mountain_id": mountain_id, "analysis": analysis, "cached": False}
 
 
 @app.post("/ai/safety/{mountain_id}")
 def ai_safety(mountain_id: int, hiking_date: date = Query(None, alias="date")):
     mountain = fetch_mountain(mountain_id)
+    cache_key = hiking_date.isoformat() if hiking_date else ""
+
+    cached = get_cached_analysis(mountain_id, "safety", cache_key)
+    if cached is not None:
+        return {"mountain_id": mountain_id, "analysis": cached, "cached": True}
 
     weather = None
     if hiking_date:
@@ -224,7 +236,9 @@ def ai_safety(mountain_id: int, hiking_date: date = Query(None, alias="date")):
         analysis = ai.analyze_safety(mountain, weather)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
-    return {"mountain_id": mountain_id, "analysis": analysis}
+
+    save_cached_analysis(mountain_id, "safety", analysis, cache_key)
+    return {"mountain_id": mountain_id, "analysis": analysis, "cached": False}
 
 
 @app.post("/ai/route-optimization/{mountain_id}")
@@ -244,11 +258,17 @@ def ai_route_optimization(mountain_id: int):
     if not waypoints:
         raise HTTPException(status_code=404, detail="No route data available for this trail")
 
+    cached = get_cached_analysis(mountain_id, "route")
+    if cached is not None:
+        return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": cached, "cached": True}
+
     try:
         plan = ai.optimize_route(mountain, waypoints)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
-    return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": plan}
+
+    save_cached_analysis(mountain_id, "route", plan)
+    return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": plan, "cached": False}
 
 
 if __name__ == "__main__":

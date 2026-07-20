@@ -72,6 +72,17 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
     CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
 );
 
+CREATE TABLE IF NOT EXISTS ai_analysis_cache (
+    cache_id SERIAL PRIMARY KEY,
+    mountain_id INT NOT NULL,
+    analysis_type VARCHAR(20) NOT NULL,
+    cache_key VARCHAR(20) NOT NULL DEFAULT '',
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ai_cache_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id),
+    CONSTRAINT ai_cache_unique UNIQUE (mountain_id, analysis_type, cache_key)
+);
+
 
 -- BAGUIO MOUNTAINS TABLE --
 INSERT INTO mountains (

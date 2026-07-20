@@ -1,4 +1,6 @@
 import os
+from typing import Optional
+
 import psycopg2
 import psycopg2.extras
 
@@ -94,6 +96,19 @@ def init_db():
             CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
         )
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ai_analysis_cache (
+            cache_id SERIAL PRIMARY KEY,
+            mountain_id INT NOT NULL,
+            analysis_type VARCHAR(20) NOT NULL,
+            cache_key VARCHAR(20) NOT NULL DEFAULT '',
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT ai_cache_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id),
+            CONSTRAINT ai_cache_unique UNIQUE (mountain_id, analysis_type, cache_key)
+        )
+    """)
     conn.commit()
 
     cursor.execute("SELECT COUNT(*) FROM route_waypoints")
@@ -106,5 +121,38 @@ def init_db():
         cursor.execute(WEATHER_SEED_SQL)
         conn.commit()
 
+    cursor.close()
+    conn.close()
+
+
+def get_cached_analysis(mountain_id: int, analysis_type: str, cache_key: str = "") -> Optional[str]:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT content FROM ai_analysis_cache
+        WHERE mountain_id = %s AND analysis_type = %s AND cache_key = %s
+        """,
+        (mountain_id, analysis_type, cache_key),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row[0] if row else None
+
+
+def save_cached_analysis(mountain_id: int, analysis_type: str, content: str, cache_key: str = "") -> None:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO ai_analysis_cache (mountain_id, analysis_type, cache_key, content)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (mountain_id, analysis_type, cache_key)
+        DO UPDATE SET content = EXCLUDED.content, created_at = CURRENT_TIMESTAMP
+        """,
+        (mountain_id, analysis_type, cache_key, content),
+    )
+    conn.commit()
     cursor.close()
     conn.close()
