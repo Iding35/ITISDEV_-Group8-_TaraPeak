@@ -286,19 +286,21 @@ def ai_route_optimization(mountain_id: int):
     if not waypoints:
         raise HTTPException(status_code=404, detail="No route data available for this trail")
 
+    # Determine total distance from the last waypoint's distance_from_start_km
+    total_distance = waypoints[-1].get("distance_from_start_km") or 0.0
+
     cached = get_cached_analysis(mountain_id, "route")
     if cached is not None:
         return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": cached, "cached": True}
 
     try:
-        plan = ai.optimize_route(mountain, waypoints)
+        # Pass total_distance along with mountain and waypoints
+        plan = ai.optimize_route(mountain, waypoints, total_distance)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
 
     save_cached_analysis(mountain_id, "route", plan)
     return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": plan, "cached": False}
-
-
 if __name__ == "__main__":
     import uvicorn
 
