@@ -35,6 +35,18 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+Copy `.env.example` to `.env` and fill in real values:
+
+```
+copy .env.example .env
+```
+
+- `DEEPSEEK_API_KEY` — required for the AI difficulty/safety/route-optimization features. Get one from
+  [platform.deepseek.com](https://platform.deepseek.com). Without it, everything else works but those
+  three AI endpoints will return an error.
+- `JWT_SECRET` — required for login/signup. Any random string works locally, e.g.
+  `python -c "import secrets; print(secrets.token_hex(32))"`.
+
 Set connection env vars to match whichever Postgres you're using (defaults shown match Option A above):
 
 ```

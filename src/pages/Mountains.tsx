@@ -197,15 +197,15 @@ export default function Mountains() {
           </span>
           <span className="font-label-sm text-label-sm">Explore</span>
         </Link>
-        <span
-          aria-disabled="true"
-          className="flex min-h-11 min-w-11 flex-col items-center justify-center py-2 text-on-surface-variant/40 cursor-not-allowed"
+        <Link
+          to="/plans"
+          className="flex min-h-11 min-w-11 flex-col items-center justify-center py-2 text-on-surface-variant transition-colors hover:text-primary"
         >
           <span aria-hidden="true" className="material-symbols-outlined">
             map
           </span>
           <span className="font-label-sm text-label-sm">My Trails</span>
-        </span>
+        </Link>
         <span
           aria-disabled="true"
           className="flex min-h-11 min-w-11 flex-col items-center justify-center py-2 text-on-surface-variant/40 cursor-not-allowed"

@@ -1,12 +1,316 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { fetchMountain, type Mountain } from '../api';
+import {
+  checkWeather,
+  createPlan,
+  fetchDifficultyAnalysis,
+  fetchMountain,
+  fetchRouteOptimization,
+  fetchSafetyAnalysis,
+  fetchWaypoints,
+  type Mountain,
+  type WeatherCheckResponse,
+  type Waypoint,
+} from '../api';
 import Navbar from '../components/Navbar';
+import { useAuth } from '../context/AuthContext';
+
+function tomorrowIso(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Renders **bold** segments and preserves line breaks from AI text responses. */
+function AnalysisText({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col gap-1 leading-7 text-gray-700">
+      {text.split('\n').map((line, i) => {
+        const parts = line.split('**');
+        const content: ReactNode = parts.map((part, j) =>
+          j % 2 === 1 ? <strong key={j}>{part}</strong> : part,
+        );
+        return line.trim() === '' ? <div key={i} className="h-2" /> : <p key={i}>{content}</p>;
+      })}
+    </div>
+  );
+}
+
+function AIAnalysisCard({
+  title,
+  icon,
+  buttonLabel,
+  fetcher,
+  disabled,
+  disabledHint,
+}: {
+  title: string;
+  icon: string;
+  buttonLabel: string;
+  fetcher: () => Promise<string>;
+  disabled?: boolean;
+  disabledHint?: string;
+}) {
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetcher();
+      setAnalysis(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary">
+          <span aria-hidden="true" className="material-symbols-outlined">
+            {icon}
+          </span>
+          {title}
+        </h2>
+        {!analysis && (
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={loading || disabled}
+            title={disabled ? disabledHint : undefined}
+            className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+          >
+            {loading ? 'Analyzing…' : buttonLabel}
+          </button>
+        )}
+      </div>
+
+      {disabled && !analysis && disabledHint && <p className="text-gray-500 text-sm">{disabledHint}</p>}
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+      {loading && (
+        <div className="flex items-center gap-3 text-gray-500">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          Asking the AI for an analysis…
+        </div>
+      )}
+      {analysis && <AnalysisText text={analysis} />}
+    </div>
+  );
+}
+
+function SavePlanSection({
+  mountainId,
+  date,
+  onDateChange,
+}: {
+  mountainId: number;
+  date: string;
+  onDateChange: (date: string) => void;
+}) {
+  const { user } = useAuth();
+  const [weather, setWeather] = useState<WeatherCheckResponse | null>(null);
+  const [checkingWeather, setCheckingWeather] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!date) return;
+    let cancelled = false;
+    setCheckingWeather(true);
+    checkWeather(mountainId, date)
+      .then((result) => {
+        if (!cancelled) setWeather(result);
+      })
+      .catch(() => {
+        if (!cancelled) setWeather(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingWeather(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mountainId, date]);
+
+  async function handleSave() {
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      await createPlan(mountainId, date);
+      setSaveStatus('saved');
+    } catch (err) {
+      setSaveStatus('error');
+      setSaveError(err instanceof Error ? err.message : 'Could not save plan');
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-4">
+        <span aria-hidden="true" className="material-symbols-outlined">
+          bookmark_add
+        </span>
+        Save a Hiking Plan
+      </h2>
+
+      <label className="flex flex-col gap-1 max-w-xs">
+        <span className="text-sm font-semibold text-gray-600">Hiking date</span>
+        <input
+          type="date"
+          value={date}
+          min={new Date().toISOString().slice(0, 10)}
+          onChange={(e) => {
+            onDateChange(e.target.value);
+            setSaveStatus('idle');
+          }}
+          className="rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+        />
+      </label>
+
+      <div className="mt-4">
+        {checkingWeather && <p className="text-gray-500 text-sm">Checking conditions for this date…</p>}
+        {!checkingWeather && weather?.forecast && (
+          <div className="flex flex-wrap gap-4 rounded-lg bg-surface-container-low p-4 text-sm">
+            <span>🌡️ {weather.forecast.temperature}°C</span>
+            <span>💧 {weather.forecast.humidity}% humidity</span>
+            <span>💨 {weather.forecast.wind_speed} km/h wind</span>
+          </div>
+        )}
+        {!checkingWeather && weather && !weather.forecast && (
+          <p className="text-gray-500 text-sm">No weather forecast available for this date yet.</p>
+        )}
+      </div>
+
+      <div className="mt-4">
+        {!user && (
+          <p className="text-gray-600 text-sm">
+            <Link to="/login" className="text-primary font-semibold hover:underline">
+              Log in
+            </Link>{' '}
+            to save this plan.
+          </p>
+        )}
+        {user && saveStatus === 'saved' && (
+          <p className="text-primary font-semibold text-sm">
+            Plan saved!{' '}
+            <Link to="/plans" className="underline">
+              View my plans
+            </Link>
+          </p>
+        )}
+        {user && saveStatus !== 'saved' && (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saveStatus === 'saving'}
+            className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+          >
+            {saveStatus === 'saving' ? 'Saving…' : 'Save Plan'}
+          </button>
+        )}
+        {saveError && <p className="text-red-600 text-sm mt-2">{saveError}</p>}
+      </div>
+    </div>
+  );
+}
+
+function RouteSection({ mountain }: { mountain: Mountain }) {
+  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+  const [loadingWaypoints, setLoadingWaypoints] = useState(true);
+  const [plan, setPlan] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchWaypoints(mountain.mountain_id)
+      .then(setWaypoints)
+      .catch(() => setWaypoints([]))
+      .finally(() => setLoadingWaypoints(false));
+  }, [mountain.mountain_id]);
+
+  async function handleOptimize() {
+    setLoadingPlan(true);
+    setError(null);
+    try {
+      const result = await fetchRouteOptimization(mountain.mountain_id);
+      setPlan(result.plan);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Route optimization failed');
+    } finally {
+      setLoadingPlan(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-4">
+        <span aria-hidden="true" className="material-symbols-outlined">
+          route
+        </span>
+        Route &amp; Pacing
+      </h2>
+
+      {loadingWaypoints && <p className="text-gray-500 text-sm">Loading route…</p>}
+
+      {!loadingWaypoints && waypoints.length > 0 && (
+        <ol className="flex flex-col gap-3 mb-6">
+          {waypoints.map((w) => (
+            <li key={w.waypoint_id} className="flex gap-4 items-start">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary-container text-sm font-semibold text-on-secondary-container">
+                {w.sequence_order}
+              </div>
+              <div>
+                <p className="font-semibold text-primary">{w.name}</p>
+                <p className="text-sm text-gray-500">
+                  {w.distance_from_start_km} km from start · {w.elevation_m}m elevation
+                </p>
+                {w.description && <p className="text-sm text-gray-600">{w.description}</p>}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {!loadingWaypoints && waypoints.length === 0 && (
+        <p className="text-gray-500 text-sm mb-4">No route data available for this trail yet.</p>
+      )}
+
+      {!plan && waypoints.length > 0 && (
+        <button
+          type="button"
+          onClick={handleOptimize}
+          disabled={loadingPlan}
+          className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+        >
+          {loadingPlan ? 'Optimizing…' : 'Generate AI Pacing Plan'}
+        </button>
+      )}
+      {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+      {loadingPlan && (
+        <div className="flex items-center gap-3 text-gray-500 mt-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          Working out the best pacing plan…
+        </div>
+      )}
+      {plan && (
+        <div className="mt-4 border-t pt-4">
+          <AnalysisText text={plan} />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TrailDetail() {
   const { id } = useParams<{ id: string }>();
   const [mountain, setMountain] = useState<Mountain | null>(null);
   const [loading, setLoading] = useState(true);
+  const [plannedDate, setPlannedDate] = useState(tomorrowIso());
 
   useEffect(() => {
     if (!id) return;
@@ -78,6 +382,33 @@ export default function TrailDetail() {
                 <h2 className="text-2xl font-semibold text-primary mb-4">Hazards</h2>
                 <p className="leading-8 text-gray-700">{mountain.hazards}</p>
               </div>
+            </section>
+
+            <section className="mt-10">
+              <SavePlanSection
+                mountainId={mountain.mountain_id}
+                date={plannedDate}
+                onDateChange={setPlannedDate}
+              />
+            </section>
+
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
+              <AIAnalysisCard
+                title="AI Difficulty Analysis"
+                icon="trending_up"
+                buttonLabel="Analyze Difficulty"
+                fetcher={() => fetchDifficultyAnalysis(mountain.mountain_id)}
+              />
+              <AIAnalysisCard
+                title="AI Safety Analysis"
+                icon="health_and_safety"
+                buttonLabel={`Analyze Safety for ${plannedDate}`}
+                fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, plannedDate)}
+              />
+            </section>
+
+            <section className="mt-10">
+              <RouteSection mountain={mountain} />
             </section>
 
             <section className="mt-12">

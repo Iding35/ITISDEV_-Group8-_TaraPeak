@@ -1,4 +1,21 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+function MountainWordmark() {
+  return (
+    <svg viewBox="0 0 176 40" role="img" aria-label="TaraPeak" className="h-8 w-auto overflow-visible">
+      <defs>
+        <path id="mountain-slope" d="M2 34 L88 6 L174 34" fill="none" />
+      </defs>
+      <text fontFamily="Inter, sans-serif" fontWeight="700" fontSize="24">
+        <textPath href="#mountain-slope" startOffset="0" textLength="172" lengthAdjust="spacing">
+          <tspan className="fill-primary">Tara</tspan>
+          <tspan className="fill-secondary">Peak</tspan>
+        </textPath>
+      </text>
+    </svg>
+  );
+}
 
 function ComingSoonLink({ label }: { label: string }) {
   return (
@@ -14,9 +31,31 @@ function ComingSoonLink({ label }: { label: string }) {
   );
 }
 
-export default function Navbar() {
+function NavLink({ to, label }: { to: string; label: string }) {
   const { pathname } = useLocation();
-  const isExploreActive = pathname === '/';
+  const isActive = pathname === to;
+  return (
+    <Link
+      to={to}
+      className={
+        isActive
+          ? 'text-primary font-label-md text-label-md border-b-2 border-primary pb-1 outline-none rounded-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
+          : 'text-on-surface-variant font-label-md text-label-md hover:text-primary transition-colors outline-none rounded-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
+      }
+    >
+      {label}
+    </Link>
+  );
+}
+
+export default function Navbar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate('/');
+  }
 
   return (
     <header className="bg-surface/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
@@ -24,33 +63,51 @@ export default function Navbar() {
         <div className="flex items-center gap-gutter">
           <Link
             to="/"
-            className="font-headline-md text-headline-md font-bold text-primary outline-none rounded-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className="inline-flex outline-none rounded-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            TaraPeak
+            <MountainWordmark />
           </Link>
           <nav className="hidden md:flex items-center gap-md">
-            <Link
-              to="/"
-              className={
-                isExploreActive
-                  ? 'text-primary font-label-md text-label-md border-b-2 border-primary pb-1 outline-none rounded-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
-                  : 'text-on-surface-variant font-label-md text-label-md hover:text-primary transition-colors outline-none rounded-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2'
-              }
-            >
-              Explore
-            </Link>
+            <NavLink to="/" label="Explore" />
             <ComingSoonLink label="Dashboard" />
-            <ComingSoonLink label="Plans" />
+            <NavLink to="/plans" label="Plans" />
           </nav>
         </div>
         <div className="flex items-center gap-md">
           <div className="flex items-center gap-sm">
-            <span className="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors"
+            >
               notifications
             </span>
-            <span className="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">
-              account_circle
-            </span>
+            {user ? (
+              <div className="flex items-center gap-sm">
+                <span className="hidden sm:inline font-label-md text-label-md text-on-surface-variant">
+                  {user.first_name}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  aria-label="Log out"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:text-primary"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined">
+                    logout
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                aria-label="Log in"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:text-primary"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined">
+                  account_circle
+                </span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
