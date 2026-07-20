@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS weather_forecasts (
     CONSTRAINT weather_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
 );
 
+
+
 CREATE TABLE IF NOT EXISTS plans (
     plan_id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
@@ -166,3 +168,29 @@ INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, ele
 (3, 3, 'Camp 2', 'Second rest camp, common overnight stop.', 2500, 8.0),
 (3, 4, 'Mossy Forest', 'Dense mossy forest crossing before the grassland.', 2700, 13.0),
 (3, 5, 'Mount Pulag Summit', 'Third highest peak in the Philippines, sea of clouds.', 2926, 18.0);
+
+CREATE TABLE IF NOT EXISTS trail_reports (
+    report_id SERIAL PRIMARY KEY,
+    mountain_id INT REFERENCES mountains(mountain_id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    condition VARCHAR(100) NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users (first_name, last_name, email, password, role) VALUES
+('Alex', 'Rivera', 'alex.rivera@example.com', 'pass1234', 'user'),
+('Maria', 'Santos', 'maria.santos@example.com', 'pass5678', 'user'),
+('John', 'Doe', 'john.doe@example.com', 'passabcd', 'user'),
+('Elena', 'Cruz', 'elena.cruz@example.com', 'passwxyz', 'user'),
+('Ramon', 'Reyes', 'ramon.reyes@example.com', 'pass8765', 'user');
+
+INSERT INTO trail_reports (mountain_id, user_id, rating, condition, comment, created_at) VALUES
+(1, 1, 4, 'Muddy / Slippery', 'Trail had significant mud near Gungal Rock due to heavy rains last week. Trekking poles are highly recommended.', '2026-07-13 09:30:00+00'),
+(1, 2, 5, 'Clear & Well-Marked', 'Great visibility early in the morning! Clear trail markings all the way up to Mount Ulap Summit.', '2026-07-13 14:15:00+00'),
+
+(2, 3, 3, 'Overgrown Vegetation', 'Lots of tall grass and bushes blocking portions of the path around Flower Garden Junction. Wear long sleeves.', '2026-07-13 11:00:00+00'),
+(2, 4, 5, 'Clear & Dry', 'Short and easy hike up Mount Yangbew. Good conditions throughout the entire trail.', '2026-07-13 16:20:00+00'),
+
+(3, 5, 3, 'Foggy / Low Visibility', 'Very cold and low visibility passing through Mossy Forest up to the summit. Bring proper cold weather gear.', '2026-07-13 05:45:00+00');
