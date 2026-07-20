@@ -169,11 +169,17 @@ export default function Dashboard() {
 
             <div className="text-left">
 
-              <h2 className="text-2xl font-bold text-primary">
-                📝 Submit Trail Reports
+              <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-2">
+                <span
+                  aria-hidden="true"
+                  className="material-symbols-outlined"
+                >
+                  edit_note
+                </span>
+                Submit Trail Report
               </h2>
 
-              <p className="text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mb-4">
                 Share your hiking experience with the community.
               </p>
 
@@ -189,11 +195,11 @@ export default function Dashboard() {
 
             <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8 mt-5">
 
-          <h2 className="text-2xl font-bold text-primary mb-2">
-            Submit Trail Report
+          <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-2">
+            Trail Report
           </h2>
 
-          <p className="text-gray-500 mb-8">
+          <p className="text-sm text-gray-500 mb-4">
             Help other hikers by sharing trail conditions,
             hazards, and your overall experience.
           </p>
@@ -206,7 +212,7 @@ export default function Dashboard() {
             {/* Mountain */}
 
             <div>
-              <label className="block font-semibold mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 Mountain
               </label>
 
@@ -216,7 +222,7 @@ export default function Dashboard() {
                   setSelectedMountain(e.target.value)
                 }
                 disabled={loadingMountains}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
               >
                 <option value="">
                   Select Mountain
@@ -236,7 +242,7 @@ export default function Dashboard() {
             {/* Trail */}
 
             <div>
-              <label className="block font-semibold mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 Trail
               </label>
 
@@ -248,7 +254,7 @@ export default function Dashboard() {
                 disabled={
                   !selectedMountain || loadingTrails
                 }
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
               >
                 <option value="">
                   Select Trail
@@ -268,7 +274,7 @@ export default function Dashboard() {
             {/* Condition */}
 
             <div>
-              <label className="block font-semibold mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 Trail Condition
               </label>
 
@@ -277,7 +283,7 @@ export default function Dashboard() {
                 onChange={(e) =>
                   setCondition(e.target.value)
                 }
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
               >
                 {CONDITIONS.map((item) => (
                   <option
@@ -293,7 +299,7 @@ export default function Dashboard() {
             {/* Rating */}
 
             <div>
-              <label className="block font-semibold mb-3">
+              <label className="block text-sm text-gray-500 mb-2">
                 Rating
               </label>
 
@@ -316,7 +322,7 @@ export default function Dashboard() {
             {/* Description */}
 
             <div>
-              <label className="block font-semibold mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 Your Experience
               </label>
 
@@ -327,7 +333,7 @@ export default function Dashboard() {
                   setComment(e.target.value)
                 }
                 placeholder="Share trail conditions, hazards, weather, scenery, or anything future hikers should know..."
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
               />
             </div>
 
