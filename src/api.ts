@@ -55,7 +55,11 @@ export interface Waypoint {
   sequence_order: number;
   name: string;
   description: string;
+  longitude: number;
+  latitude: number;
   elevation_m: number;
+  difficulty: string;
+  estimated_time: number;
   distance_from_start_km: number;
 }
 
