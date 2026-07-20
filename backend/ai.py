@@ -86,9 +86,10 @@ def optimize_route(mountain: dict, waypoints: list) -> str:
     )
     user_prompt = (
         f"Mountain: {mountain['mountain_name']}\n"
-        f"Total distance: {mountain['distance']} km\n"
-        f"Estimated total time: {mountain['estimated_time']} hours\n"
-        f"Difficulty: {mountain['difficulty']}\n"
+        f"Total distance: {w['distance_from_start_km']} km\n"
+        f"Estimated total time: {w['estimated_time']} hours\n"
+        f"Difficulty: {w['difficulty']}\n"
         f"Waypoints in order:\n{waypoint_lines}\n"
     )
     return _chat(system_prompt, user_prompt)
+
