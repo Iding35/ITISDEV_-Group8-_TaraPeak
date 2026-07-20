@@ -59,6 +59,17 @@ export interface Waypoint {
   distance_from_start_km: number;
 }
 
+export interface TrailReport {
+  report_id?: number;
+  mountain_id: number;
+  user_id?: number | null;
+  user_name?: string | null;
+  rating: number;
+  condition: string;
+  comment: string;
+  created_at?: string;
+}
+
 const API_URL = 'http://127.0.0.1:8000';
 const TOKEN_KEY = 'tarapeak_token';
 
@@ -186,5 +197,13 @@ export async function fetchRouteOptimization(
 ): Promise<{ waypoints: Waypoint[]; plan: string }> {
   const response = await fetch(`${API_URL}/ai/route-optimization/${mountainId}`, { method: 'POST' });
   if (!response.ok) throw await extractError(response, 'AI route optimization failed');
+  return response.json();
+}
+
+export async function fetchTrailReports(mountainId: number): Promise<TrailReport[]> {
+  const response = await fetch(`${API_URL}/trail-reports/${mountainId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch trail reports');
+  }
   return response.json();
 }

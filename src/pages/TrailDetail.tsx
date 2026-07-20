@@ -8,9 +8,11 @@ import {
   fetchRouteOptimization,
   fetchSafetyAnalysis,
   fetchWaypoints,
+  fetchTrailReports,
   type Mountain,
   type WeatherCheckResponse,
   type Waypoint,
+  type TrailReport,
 } from '../api';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
@@ -247,65 +249,159 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-4">
-        <span aria-hidden="true" className="material-symbols-outlined">
-          route
-        </span>
-        Route &amp; Pacing
-      </h2>
+    <div className="flex flex-col gap-6">
+      
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-4">
+          <span aria-hidden="true" className="material-symbols-outlined">
+            map
+          </span>
+          Available Trail Checkpoints
+        </h2>
 
-      {loadingWaypoints && <p className="text-gray-500 text-sm">Loading route…</p>}
+        {loadingWaypoints && <p className="text-gray-500 text-sm">Loading trail checkpoints…</p>}
 
-      {!loadingWaypoints && waypoints.length > 0 && (
-        <ol className="flex flex-col gap-3 mb-6">
-          {waypoints.map((w) => (
-            <li key={w.waypoint_id} className="flex gap-4 items-start">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary-container text-sm font-semibold text-on-secondary-container">
-                {w.sequence_order}
-              </div>
-              <div>
-                <p className="font-semibold text-primary">{w.name}</p>
-                <p className="text-sm text-gray-500">
-                  {w.distance_from_start_km} km from start · {w.elevation_m}m elevation
-                </p>
-                {w.description && <p className="text-sm text-gray-600">{w.description}</p>}
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
+        {!loadingWaypoints && waypoints.length > 0 && (
+          <ol className="flex flex-col gap-4">
+            {waypoints.map((w) => (
+              <li key={w.waypoint_id} className="flex gap-4 items-start p-3 rounded-lg border border-gray-100 bg-surface-container-lowest hover:border-gray-200 transition-colors">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                  {w.sequence_order}
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-gray-900">{w.name}</p>
+                    <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                      {w.distance_from_start_km} km • {w.elevation_m}m elevation
+                    </span>
+                  </div>
+                  {w.description && <p className="text-sm text-gray-600 mt-1">{w.description}</p>}
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
 
-      {!loadingWaypoints && waypoints.length === 0 && (
-        <p className="text-gray-500 text-sm mb-4">No route data available for this trail yet.</p>
-      )}
+        {!loadingWaypoints && waypoints.length === 0 && (
+          <p className="text-gray-500 text-sm">No trail checkpoint data available for this mountain yet.</p>
+        )}
+      </div>
 
-      {!plan && waypoints.length > 0 && (
-        <button
-          type="button"
-          onClick={handleOptimize}
-          disabled={loadingPlan}
-          className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
-        >
-          {loadingPlan ? 'Optimizing…' : 'Generate AI Pacing Plan'}
-        </button>
-      )}
-      {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-      {loadingPlan && (
-        <div className="flex items-center gap-3 text-gray-500 mt-3">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          Working out the best pacing plan…
+      {/* PANEL 2: AI Route Optimization & Pacing Plan */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary">
+              <span aria-hidden="true" className="material-symbols-outlined">
+                route
+              </span>
+              AI Route &amp; Pacing Optimization
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Generate a personalized pacing schedule and rest-stop recommendations based on trail elevation.
+            </p>
+          </div>
+
+          {!plan && waypoints.length > 0 && (
+            <button
+              type="button"
+              onClick={handleOptimize}
+              disabled={loadingPlan}
+              className="shrink-0 rounded-xl bg-primary px-4 py-2.5 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+            >
+              {loadingPlan ? 'Optimizing…' : 'Generate AI Pacing Plan'}
+            </button>
+          )}
         </div>
-      )}
-      {plan && (
-        <div className="mt-4 border-t pt-4">
-          <AnalysisText text={plan} />
-        </div>
-      )}
+
+        {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+        
+        {loadingPlan && (
+          <div className="flex items-center gap-3 text-gray-500 mt-3">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            Working out the best pacing plan…
+          </div>
+        )}
+
+        {plan && (
+          <div className="mt-4 border-t pt-4">
+            <AnalysisText text={plan} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+function TrailReportsSection({ mountainId }: { mountainId: number }) {
+  const [reports, setReports] = useState<TrailReport[]>([]);
+  const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!mountainId) return;
+
+    setLoading(true);
+    fetchTrailReports(mountainId)
+      .then(setReports)
+      .catch((err) => {
+        console.error('Failed to load reports:', err);
+        setReports([]);
+      })
+      .finally(() => setLoading(false));
+  }, [mountainId]);
+
+  return (
+    <section className="mt-12">
+      <div className="mb-6">
+        <h2 className="text-3xl font-bold text-primary">Trail Reports</h2>
+      </div>
+
+      {loading && <p className="text-gray-500 text-sm">Loading reports...</p>}
+
+      {!loading && reports.length === 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
+          No trail reports recorded yet.
+        </div>
+      )}
+
+      {!loading && reports.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {reports.map((report, idx) => (
+            <div
+              key={report.report_id ?? idx}
+              className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-gray-900">
+                    {report.user_name || 'Anonymous Hiker'}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {report.created_at
+                      ? new Date(report.created_at).toLocaleDateString()
+                      : 'Recently'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {report.rating ?? 0}/5
+                  </span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-surface-container-low text-primary">
+                    {report.condition}
+                  </span>
+                </div>
+
+                <p className="text-gray-700 text-sm leading-relaxed">
+                  {report.comment}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 export default function TrailDetail() {
   const { id } = useParams<{ id: string }>();
   const [mountain, setMountain] = useState<Mountain | null>(null);
@@ -411,16 +507,7 @@ export default function TrailDetail() {
               <RouteSection mountain={mountain} />
             </section>
 
-            <section className="mt-12">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-bold text-primary">Trail Reports</h2>
-              </div>
-              <div className="space-y-4">
-                <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
-                  No trail reports available.
-                </div>
-              </div>
-            </section>
+            <TrailReportsSection mountainId={mountain.mountain_id} />
 
             <section className="mt-12">
               <h2 className="text-3xl font-bold text-primary mb-6">Mountain Information</h2>

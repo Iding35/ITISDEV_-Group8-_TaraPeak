@@ -69,7 +69,7 @@ export default function Navbar() {
           </Link>
           <nav className="hidden md:flex items-center gap-md">
             <NavLink to="/" label="Explore" />
-            <ComingSoonLink label="Dashboard" />
+            <NavLink to="/dashboard" label="Dashboard" />
             <NavLink to="/plans" label="Plans" />
           </nav>
         </div>
@@ -86,16 +86,22 @@ export default function Navbar() {
                 <span className="hidden sm:inline font-label-md text-label-md text-on-surface-variant">
                   {user.first_name}
                 </span>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  aria-label="Log out"
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:text-primary"
-                >
-                  <span aria-hidden="true" className="material-symbols-outlined">
-                    logout
-                  </span>
-                </button>
+                <div className="relative group">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    aria-label="Log out"
+                    className="flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:text-primary focus:outline-none"
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined">
+                      logout
+                    </span>
+                  </button>
+
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover:block bg-surface-container-high text-on-surface font-label-sm text-xs px-2 py-1 rounded shadow-md whitespace-nowrap z-50">
+                    Log out
+                  </div>
+                </div>
               </div>
             ) : (
               <Link

@@ -111,6 +111,34 @@ def get_waypoints(mountain_id: int):
 
     return [dict(row) for row in rows]
 
+@app.get("/trail-reports/{mountain_id}")
+def get_trail_reports(mountain_id: int):
+    fetch_mountain(mountain_id)
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    query = """
+        SELECT 
+            tr.report_id,
+            tr.mountain_id,
+            tr.rating,
+            tr.condition,
+            tr.comment,
+            tr.created_at,
+            CONCAT(u.first_name, ' ', u.last_name) AS user_name
+        FROM trail_reports tr
+        LEFT JOIN users u ON tr.user_id = u.user_id
+        WHERE tr.mountain_id = %s
+        ORDER BY tr.created_at DESC;
+    """
+    
+    cursor.execute(query, (mountain_id,))
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return [dict(row) for row in rows]
 
 # ---------------------------------------------------------------------------
 # Hiking plans
