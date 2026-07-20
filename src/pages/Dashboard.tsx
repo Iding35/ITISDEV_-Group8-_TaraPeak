@@ -164,8 +164,8 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-margin-desktop py-lg">
 
         <div className="mb-10">
-          <h1 className="font-display-lg text-display-lg text-primary leading-tight">
-            My Trails
+          <h1 className="font-display-lg text-display-lg text-primary animated-text leading-tight">
+            My Dashboard
           </h1>
 
           <p className="text-on-surface/70 mt-2">

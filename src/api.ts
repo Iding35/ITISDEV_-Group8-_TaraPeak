@@ -190,15 +190,15 @@ export async function deletePlan(planId: number): Promise<void> {
 export async function checkWeather(
   mountainId: number,
   hikingDate: string,
-  latitude: number,
-  longitude: number,
+  waypointId: number
 ): Promise<WeatherCheckResponse> {
   const params = new URLSearchParams({
     date: hikingDate,
-    latitude: String(latitude),
-    longitude: String(longitude),
+    waypoint_id: String(waypointId),
   });
-  const response = await fetch(`${API_URL}/weather/${mountainId}?${params}`, { headers: authHeaders() });
+  const response = await fetch(`${API_URL}/weather/${mountainId}?${params}`, {
+    headers: authHeaders(),
+  });
   if (!response.ok) throw await extractError(response, 'Could not check weather');
   return response.json();
 }

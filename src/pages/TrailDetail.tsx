@@ -250,27 +250,29 @@ function SavePlanSection({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!date || !selectedWaypoint || !user) {
-      setWeather(null);
-      return;
-    }
-    let cancelled = false;
-    setCheckingWeather(true);
-    checkWeather(mountainId, date, selectedWaypoint.latitude, selectedWaypoint.longitude)
-      .then((result) => {
-        if (!cancelled) setWeather(result);
-      })
-      .catch(() => {
-        if (!cancelled) setWeather(null);
-      })
-      .finally(() => {
-        if (!cancelled) setCheckingWeather(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mountainId, date, selectedWaypoint, user]);
+useEffect(() => {
+  if (!date || !selectedWaypoint || !user) {
+    setWeather(null);
+    return;
+  }
+  let cancelled = false;
+  setCheckingWeather(true);
+
+  checkWeather(mountainId, date, selectedWaypoint.waypoint_id)
+    .then((result) => {
+      if (!cancelled) setWeather(result);
+    })
+    .catch(() => {
+      if (!cancelled) setWeather(null);
+    })
+    .finally(() => {
+      if (!cancelled) setCheckingWeather(false);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, [mountainId, date, selectedWaypoint, user]);
 
   async function handleSave() {
     setSaveStatus('saving');

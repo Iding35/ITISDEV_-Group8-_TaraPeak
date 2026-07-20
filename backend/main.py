@@ -9,7 +9,7 @@ import psycopg2.extras
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-
+import datetime
 import ai
 import weather
 from auth import get_current_user, router as auth_router
@@ -77,23 +77,46 @@ def get_mountain(mountain_id: int):
 # Weather / date & location check
 # ---------------------------------------------------------------------------
 
+
+
 @app.get("/weather/{mountain_id}")
 def check_weather(
     mountain_id: int,
-    hiking_date: date = Query(..., alias="date"),
-    latitude: float = Query(...),
-    longitude: float = Query(...),
+    hiking_date: datetime.date = Query(..., alias="date"), # Explicit type hint
+    waypoint_id: int = Query(..., alias="waypoint_id"),
     current_user: dict = Depends(get_current_user),
 ):
-    fetch_mountain(mountain_id)  # 404s if the mountain doesn't exist
+    fetch_mountain(mountain_id)
 
     if hiking_date < date.today():
         raise HTTPException(status_code=400, detail="Hiking date can't be in the past")
 
+    # 1. Fetch exact latitude & longitude for the selected waypoint
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT latitude, longitude 
+        FROM route_waypoints 
+        WHERE waypoint_id = %s AND mountain_id = %s
+        """,
+        (waypoint_id, mountain_id),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Waypoint not found")
+
+    latitude, longitude = row[0], row[1]
+
+    # 2. Query database forecast cache
     cached = get_weather_forecast(mountain_id, hiking_date)
     if cached is not None:
         return {"date_valid": True, "forecast": cached}
 
+    # 3. Call Open-Meteo with waypoint coordinates
     try:
         result = weather.fetch_forecast_for_date(latitude, longitude, hiking_date)
     except Exception as e:
@@ -102,11 +125,11 @@ def check_weather(
     if result is None:
         return {"date_valid": True, "forecast": None}
 
+    # 4. Save to database cache
     save_weather_forecast(
         mountain_id, hiking_date, result["temperature"], result["humidity"], result["wind_speed"]
     )
-    return {"date_valid": True, "forecast": get_weather_forecast(mountain_id, hiking_date)}
-
+    return {"date_valid": True, "forecast": result}
 
 # ---------------------------------------------------------------------------
 # Route waypoints

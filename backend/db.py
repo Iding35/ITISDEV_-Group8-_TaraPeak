@@ -1,6 +1,6 @@
 import os
 from typing import Optional
-
+from datetime import date
 import bcrypt
 import psycopg2
 import psycopg2.extras
@@ -222,34 +222,72 @@ def save_cached_analysis(mountain_id: int, analysis_type: str, content: str, cac
     conn.close()
 
 
-def get_weather_forecast(mountain_id: int, hiking_date) -> Optional[dict]:
+def get_weather_forecast(mountain_id: int, hiking_date: date):
     conn = get_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM weather_forecasts WHERE mountain_id = %s AND hiking_date = %s",
+        """
+        SELECT temperature, humidity, wind_speed 
+        FROM weather_forecasts 
+        WHERE mountain_id = %s AND hiking_date = %s
+        """,
         (mountain_id, hiking_date),
     )
     row = cursor.fetchone()
     cursor.close()
     conn.close()
-    return dict(row) if row else None
+    
+    if row:
+        return {
+            "temperature": float(row[0]),  # <-- FORCE CONVERSION TO FLOAT HERE
+            "humidity": int(row[1]),
+            "wind_speed": float(row[2])    # <-- FORCE CONVERSION TO FLOAT HERE
+        }
+    return None
 
 
-def save_weather_forecast(
-    mountain_id: int, hiking_date, temperature, humidity, wind_speed
-) -> None:
+def get_weather_forecast(mountain_id: int, hiking_date: date):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed)
-        VALUES (%s, %s, %s, %s, %s)
-        ON CONFLICT (mountain_id, hiking_date)
-        DO UPDATE SET temperature = EXCLUDED.temperature, humidity = EXCLUDED.humidity,
-                       wind_speed = EXCLUDED.wind_speed
+        SELECT temperature, humidity, wind_speed 
+        FROM weather_forecasts 
+        WHERE mountain_id = %s AND hiking_date = %s
         """,
-        (mountain_id, hiking_date, temperature, humidity, wind_speed),
+        (mountain_id, hiking_date),
     )
-    conn.commit()
+    row = cursor.fetchone()
     cursor.close()
     conn.close()
+    
+    if row:
+        return {
+            "temperature": float(row[0]),  # Convert DECIMAL securely
+            "humidity": int(row[1]),
+            "wind_speed": float(row[2])
+        }
+    return None
+
+def save_weather_forecast(mountain_id: int, hiking_date: date, temp: float, hum: int, wind: float):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (mountain_id, hiking_date) DO UPDATE 
+            SET temperature = EXCLUDED.temperature, 
+                humidity = EXCLUDED.humidity, 
+                wind_speed = EXCLUDED.wind_speed
+            """,
+            (mountain_id, hiking_date, temp, hum, wind),
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()

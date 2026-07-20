@@ -150,7 +150,7 @@ export default function MyPlans() {
     <div className="min-h-screen bg-surface text-on-surface">
       <Navbar />
       <main className="max-w-7xl mx-auto px-margin-desktop py-lg">
-        <h1 className="font-display-lg text-display-lg text-primary leading-tight mb-lg">My Trails</h1>
+        <h1 className="font-display-lg text-display-lg text-primary animated-text leading-tight mb-lg">My Saved Trails</h1>
 
         {invites.length > 0 && (
           <section className="mb-xl">

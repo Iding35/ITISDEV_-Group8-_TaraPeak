@@ -3,17 +3,11 @@ import { useAuth } from '../context/AuthContext';
 
 function MountainWordmark() {
   return (
-    <svg viewBox="0 0 176 40" role="img" aria-label="TaraPeak" className="h-8 w-auto overflow-visible">
-      <defs>
-        <path id="mountain-slope" d="M2 34 L88 6 L174 34" fill="none" />
-      </defs>
-      <text fontFamily="Inter, sans-serif" fontWeight="700" fontSize="24">
-        <textPath href="#mountain-slope" startOffset="0" textLength="172" lengthAdjust="spacing">
-          <tspan className="fill-primary">Tara</tspan>
-          <tspan className="fill-secondary">Peak</tspan>
-        </textPath>
-      </text>
-    </svg>
+    <img 
+      src="/logo-tarapeak.png" 
+      alt="TaraPeak Logo" 
+      className="h-8 w-auto object-contain" 
+    />
   );
 }
 
