@@ -109,10 +109,12 @@ function SavePlanSection({
   mountainId,
   date,
   onDateChange,
+  selectedWaypoint,
 }: {
   mountainId: number;
   date: string;
   onDateChange: (date: string) => void;
+  selectedWaypoint: Waypoint | null;
 }) {
   const { user } = useAuth();
   const [weather, setWeather] = useState<WeatherCheckResponse | null>(null);
@@ -121,7 +123,7 @@ function SavePlanSection({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!date) return;
+    if (!date || !selectedWaypoint) return;
     let cancelled = false;
     setCheckingWeather(true);
     checkWeather(mountainId, date)
@@ -137,7 +139,7 @@ function SavePlanSection({
     return () => {
       cancelled = true;
     };
-  }, [mountainId, date]);
+  }, [mountainId, date, selectedWaypoint]);
 
   async function handleSave() {
     setSaveStatus('saving');
@@ -160,68 +162,88 @@ function SavePlanSection({
         Save a Hiking Plan
       </h2>
 
-      <label className="flex flex-col gap-1 max-w-xs">
-        <span className="text-sm font-semibold text-gray-600">Hiking date</span>
-        <input
-          type="date"
-          value={date}
-          min={new Date().toISOString().slice(0, 10)}
-          onChange={(e) => {
-            onDateChange(e.target.value);
-            setSaveStatus('idle');
-          }}
-          className="rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-        />
-      </label>
-
-      <div className="mt-4">
-        {checkingWeather && <p className="text-gray-500 text-sm">Checking conditions for this date…</p>}
-        {!checkingWeather && weather?.forecast && (
-          <div className="flex flex-wrap gap-4 rounded-lg bg-surface-container-low p-4 text-sm">
-            <span>🌡️ {weather.forecast.temperature}°C</span>
-            <span>💧 {weather.forecast.humidity}% humidity</span>
-            <span>💨 {weather.forecast.wind_speed} km/h wind</span>
+      {!selectedWaypoint ? (
+        <p className="text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 text-sm">
+          ⚠️ Please select an available trail checkpoint above before choosing a date.
+        </p>
+      ) : (
+        <>
+          <div className="mb-4 text-sm font-medium text-primary bg-primary/10 p-3 rounded-lg inline-block">
+            Selected Checkpoint: <span className="font-bold">{selectedWaypoint.name}</span>
           </div>
-        )}
-        {!checkingWeather && weather && !weather.forecast && (
-          <p className="text-gray-500 text-sm">No weather forecast available for this date yet.</p>
-        )}
-      </div>
 
-      <div className="mt-4">
-        {!user && (
-          <p className="text-gray-600 text-sm">
-            <Link to="/login" className="text-primary font-semibold hover:underline">
-              Log in
-            </Link>{' '}
-            to save this plan.
-          </p>
-        )}
-        {user && saveStatus === 'saved' && (
-          <p className="text-primary font-semibold text-sm">
-            Plan saved!{' '}
-            <Link to="/plans" className="underline">
-              View my plans
-            </Link>
-          </p>
-        )}
-        {user && saveStatus !== 'saved' && (
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saveStatus === 'saving'}
-            className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
-          >
-            {saveStatus === 'saving' ? 'Saving…' : 'Save Plan'}
-          </button>
-        )}
-        {saveError && <p className="text-red-600 text-sm mt-2">{saveError}</p>}
-      </div>
+          <label className="flex flex-col gap-1 max-w-xs">
+            <span className="text-sm font-semibold text-gray-600">Hiking date</span>
+            <input
+              type="date"
+              value={date}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => {
+                onDateChange(e.target.value);
+                setSaveStatus('idle');
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+            />
+          </label>
+
+          <div className="mt-4">
+            {checkingWeather && <p className="text-gray-500 text-sm">Checking conditions for this date…</p>}
+            {!checkingWeather && weather?.forecast && (
+              <div className="flex flex-wrap gap-4 rounded-lg bg-surface-container-low p-4 text-sm">
+                <span>🌡️ {weather.forecast.temperature}°C</span>
+                <span>💧 {weather.forecast.humidity}% humidity</span>
+                <span>💨 {weather.forecast.wind_speed} km/h wind</span>
+              </div>
+            )}
+            {!checkingWeather && weather && !weather.forecast && (
+              <p className="text-gray-500 text-sm">No weather forecast available for this date yet.</p>
+            )}
+          </div>
+
+          <div className="mt-4">
+            {!user && (
+              <p className="text-gray-600 text-sm">
+                <Link to="/login" className="text-primary font-semibold hover:underline">
+                  Log in
+                </Link>{' '}
+                to save this plan.
+              </p>
+            )}
+            {user && saveStatus === 'saved' && (
+              <p className="text-primary font-semibold text-sm">
+                Plan saved!{' '}
+                <Link to="/plans" className="underline">
+                  View my plans
+                </Link>
+              </p>
+            )}
+            {user && saveStatus !== 'saved' && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saveStatus === 'saving'}
+                className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+              >
+                {saveStatus === 'saving' ? 'Saving…' : 'Save Plan'}
+              </button>
+            )}
+            {saveError && <p className="text-red-600 text-sm mt-2">{saveError}</p>}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-function RouteSection({ mountain }: { mountain: Mountain }) {
+function RouteSection({
+  mountain,
+  selectedWaypoint,
+  onSelectWaypoint,
+}: {
+  mountain: Mountain;
+  selectedWaypoint: Waypoint | null;
+  onSelectWaypoint: (wp: Waypoint) => void;
+}) {
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [loadingWaypoints, setLoadingWaypoints] = useState(true);
   const [plan, setPlan] = useState<string | null>(null);
@@ -248,23 +270,43 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
     }
   }
 
+  const difficultyWeight: Record<string, number> = {
+    easy: 1,
+    moderate: 2,
+    medium: 2,
+    hard: 3,
+    critical: 4,
+  };
+
+  const sortedWaypoints = [...waypoints].sort((a, b) => {
+    const diffA = difficultyWeight[a.difficulty?.toLowerCase() || ''] || 99;
+    const diffB = difficultyWeight[b.difficulty?.toLowerCase() || ''] || 99;
+    
+    if (diffA !== diffB) {
+      return diffA - diffB;
+    }
+    return (a.sequence_order || 0) - (b.sequence_order || 0);
+  });
+
   return (
     <div className="flex flex-col gap-6">
-
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-4">
+        <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-2">
           <span aria-hidden="true" className="material-symbols-outlined">
             map
           </span>
           Available Trail Checkpoints
         </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Select a checkpoint below to enable date picking and safety evaluation.
+        </p>
 
         {loadingWaypoints && <p className="text-gray-500 text-sm">Loading trail checkpoints…</p>}
 
-        {!loadingWaypoints && waypoints.length > 0 && (
+        {!loadingWaypoints && sortedWaypoints.length > 0 && (
           <ol className="flex flex-col gap-3">
-            {waypoints.map((w) => {
-              // Determine difficulty colors dynamically
+            {sortedWaypoints.map((w) => {
+              const isSelected = selectedWaypoint?.waypoint_id === w.waypoint_id;
               const difficultyKey = w.difficulty?.toLowerCase();
               let difficultyStyle = "bg-slate-100 text-slate-700 border-slate-200/60";
 
@@ -281,36 +323,42 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
               return (
                 <li
                   key={w.waypoint_id}
-                  className="flex gap-3.5 items-start p-4 rounded-xl border border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-sm transition-all"
+                  onClick={() => onSelectWaypoint(w)}
+                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
+                      : 'border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-sm'
+                  }`}
                 >
-                  {/* Sequence Circle */}
+                  <input
+                    type="radio"
+                    name="checkpoint"
+                    checked={isSelected}
+                    onChange={() => onSelectWaypoint(w)}
+                    className="mt-1.5 h-4 w-4 text-primary focus:ring-primary accent-primary"
+                  />
+
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                     {w.sequence_order}
                   </div>
 
-                  {/* Main Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      {/* Title */}
                       <h4 className="font-semibold text-slate-900 text-base leading-snug truncate">
                         {w.name}
                       </h4>
 
-                      {/* Metadata Badges */}
                       <div className="flex items-center gap-1.5 text-xs">
-                        {/* Difficulty Badge */}
                         {w.difficulty && (
                           <span className={`px-2 py-0.5 rounded-md font-medium border capitalize ${difficultyStyle}`}>
                             {w.difficulty}
                           </span>
                         )}
 
-                        {/* Distance & Elevation Pill */}
                         <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
                           {w.distance_from_start_km} km • {w.elevation_m}m
                         </span>
 
-                        {/* Time Pill */}
                         {w.estimated_time && (
                           <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
                             {w.estimated_time} hrs
@@ -319,7 +367,6 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
                       </div>
                     </div>
 
-                    {/* Description */}
                     {w.description && (
                       <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
                         {w.description}
@@ -332,12 +379,12 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
           </ol>
         )}
 
-        {!loadingWaypoints && waypoints.length === 0 && (
+        {!loadingWaypoints && sortedWaypoints.length === 0 && (
           <p className="text-gray-500 text-sm">No trail checkpoint data available for this mountain yet.</p>
         )}
       </div>
 
-      {/* PANEL 2: AI Route Optimization & Pacing Plan */}
+  
       <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div>
@@ -382,6 +429,7 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
     </div>
   );
 }
+
 function TrailReportsSection({ mountainId }: { mountainId: number }) {
   const [reports, setReports] = useState<TrailReport[]>([]);
   const [loading, setLoading] = useState(false);
@@ -452,11 +500,13 @@ function TrailReportsSection({ mountainId }: { mountainId: number }) {
     </section>
   );
 }
+
 export default function TrailDetail() {
   const { id } = useParams<{ id: string }>();
   const [mountain, setMountain] = useState<Mountain | null>(null);
   const [loading, setLoading] = useState(true);
   const [plannedDate, setPlannedDate] = useState(tomorrowIso());
+  const [selectedWaypoint, setSelectedWaypoint] = useState<Waypoint | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -499,39 +549,35 @@ export default function TrailDetail() {
               <h2 className="text-2xl font-semibold text-primary mb-4">Description</h2>
               <p className="leading-8 text-gray-700">{mountain.description}</p>
             </section>
+            
+            <section className="mt-8">
 
-            {/* <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <p className="text-sm uppercase tracking-wider text-gray-500">Difficulty</p>
-                <h3 className="text-3xl font-bold text-primary mt-3">{mountain.difficulty}</h3>
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <table className="w-full">
+                  <tbody>
+                    <tr className="border-b">
+                      <td className="font-semibold p-4">Location</td>
+                      <td className="p-4">{mountain.location}</td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="font-semibold p-4">Terrain</td>
+                      <td className="p-4">{mountain.terrain}</td>
+                    </tr>
+                    <tr >
+                      <td className="font-semibold p-4">Total Hikers</td>
+                      <td className="p-4">{mountain.total_hikers}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <p className="text-sm uppercase tracking-wider text-gray-500">Distance</p>
-                <h3 className="text-3xl font-bold text-primary mt-3">{mountain.distance} km</h3>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <p className="text-sm uppercase tracking-wider text-gray-500">Estimated Time</p>
-                <h3 className="text-3xl font-bold text-primary mt-3">{mountain.estimated_time} hrs</h3>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <p className="text-sm uppercase tracking-wider text-gray-500">Total Hikers</p>
-                <h3 className="text-3xl font-bold text-primary mt-3">{mountain.total_hikers}</h3>
-              </div>
-            </section> */}
-
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h2 className="text-2xl font-semibold text-primary mb-4">Terrain</h2>
-                <p className="leading-8 text-gray-700">{mountain.terrain}</p>
-              </div>
-              {/* <div className="bg-white rounded-xl shadow-sm p-6">
-                <h2 className="text-2xl font-semibold text-primary mb-4">Hazards</h2>
-                <p className="leading-8 text-gray-700">{mountain.hazards}</p>
-              </div> */}
             </section>
 
             <section className="mt-10">
-              <RouteSection mountain={mountain} />
+              <RouteSection
+                mountain={mountain}
+                selectedWaypoint={selectedWaypoint}
+                onSelectWaypoint={setSelectedWaypoint}
+              />
             </section>
 
             <section className="mt-10">
@@ -539,6 +585,7 @@ export default function TrailDetail() {
                 mountainId={mountain.mountain_id}
                 date={plannedDate}
                 onDateChange={setPlannedDate}
+                selectedWaypoint={selectedWaypoint}
               />
             </section>
 
@@ -547,39 +594,23 @@ export default function TrailDetail() {
                 title="AI Difficulty Analysis"
                 icon="trending_up"
                 buttonLabel="Analyze Difficulty"
+                disabled={!selectedWaypoint}
+                disabledHint="Select an available trail checkpoint first to run difficulty analysis."
                 fetcher={() => fetchDifficultyAnalysis(mountain.mountain_id)}
               />
               <AIAnalysisCard
                 title="AI Safety Analysis"
                 icon="health_and_safety"
                 buttonLabel={`Analyze Safety for ${plannedDate}`}
+                disabled={!selectedWaypoint}
+                disabledHint="Select an available trail checkpoint first to run safety analysis."
                 fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, plannedDate)}
               />
             </section>
 
             <TrailReportsSection mountainId={mountain.mountain_id} />
 
-            <section className="mt-12">
-              <h2 className="text-3xl font-bold text-primary mb-6">Mountain Information</h2>
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <table className="w-full">
-                  <tbody>
-                    <tr className="border-b">
-                      <td className="font-semibold p-4 w-1/3">Mountain Name</td>
-                      <td className="p-4">{mountain.mountain_name}</td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="font-semibold p-4">Location</td>
-                      <td className="p-4">{mountain.location}</td>
-                    </tr>
-                    <tr>
-                      <td className="font-semibold p-4">Total Hikers</td>
-                      <td className="p-4">{mountain.total_hikers}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            
           </>
         )}
 
