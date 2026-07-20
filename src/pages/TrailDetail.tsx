@@ -250,7 +250,7 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
 
   return (
     <div className="flex flex-col gap-6">
-      
+
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-4">
           <span aria-hidden="true" className="material-symbols-outlined">
@@ -262,23 +262,73 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
         {loadingWaypoints && <p className="text-gray-500 text-sm">Loading trail checkpoints…</p>}
 
         {!loadingWaypoints && waypoints.length > 0 && (
-          <ol className="flex flex-col gap-4">
-            {waypoints.map((w) => (
-              <li key={w.waypoint_id} className="flex gap-4 items-start p-3 rounded-lg border border-gray-100 bg-surface-container-lowest hover:border-gray-200 transition-colors">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                  {w.sequence_order}
-                </div>
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold text-gray-900">{w.name}</p>
-                    <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                      {w.distance_from_start_km} km • {w.elevation_m}m elevation
-                    </span>
+          <ol className="flex flex-col gap-3">
+            {waypoints.map((w) => {
+              // Determine difficulty colors dynamically
+              const difficultyKey = w.difficulty?.toLowerCase();
+              let difficultyStyle = "bg-slate-100 text-slate-700 border-slate-200/60";
+
+              if (difficultyKey === "easy") {
+                difficultyStyle = "bg-emerald-50 text-emerald-700 border-emerald-200/80";
+              } else if (difficultyKey === "moderate" || difficultyKey === "medium") {
+                difficultyStyle = "bg-yellow-50 text-yellow-800 border-yellow-200/80";
+              } else if (difficultyKey === "hard") {
+                difficultyStyle = "bg-orange-50 text-orange-700 border-orange-200/80";
+              } else if (difficultyKey === "critical") {
+                difficultyStyle = "bg-red-50 text-red-700 border-red-200/80";
+              }
+
+              return (
+                <li
+                  key={w.waypoint_id}
+                  className="flex gap-3.5 items-start p-4 rounded-xl border border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-sm transition-all"
+                >
+                  {/* Sequence Circle */}
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                    {w.sequence_order}
                   </div>
-                  {w.description && <p className="text-sm text-gray-600 mt-1">{w.description}</p>}
-                </div>
-              </li>
-            ))}
+
+                  {/* Main Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      {/* Title */}
+                      <h4 className="font-semibold text-slate-900 text-base leading-snug truncate">
+                        {w.name}
+                      </h4>
+
+                      {/* Metadata Badges */}
+                      <div className="flex items-center gap-1.5 text-xs">
+                        {/* Difficulty Badge */}
+                        {w.difficulty && (
+                          <span className={`px-2 py-0.5 rounded-md font-medium border capitalize ${difficultyStyle}`}>
+                            {w.difficulty}
+                          </span>
+                        )}
+
+                        {/* Distance & Elevation Pill */}
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
+                          {w.distance_from_start_km} km • {w.elevation_m}m
+                        </span>
+
+                        {/* Time Pill */}
+                        {w.estimated_time && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
+                            {w.estimated_time} hrs
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    {w.description && (
+                      <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
+                        {w.description}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         )}
 
@@ -315,7 +365,7 @@ function RouteSection({ mountain }: { mountain: Mountain }) {
         </div>
 
         {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-        
+
         {loadingPlan && (
           <div className="flex items-center gap-3 text-gray-500 mt-3">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -450,7 +500,7 @@ export default function TrailDetail() {
               <p className="leading-8 text-gray-700">{mountain.description}</p>
             </section>
 
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
+            {/* <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <p className="text-sm uppercase tracking-wider text-gray-500">Difficulty</p>
                 <h3 className="text-3xl font-bold text-primary mt-3">{mountain.difficulty}</h3>
@@ -467,17 +517,21 @@ export default function TrailDetail() {
                 <p className="text-sm uppercase tracking-wider text-gray-500">Total Hikers</p>
                 <h3 className="text-3xl font-bold text-primary mt-3">{mountain.total_hikers}</h3>
               </div>
-            </section>
+            </section> */}
 
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h2 className="text-2xl font-semibold text-primary mb-4">Terrain</h2>
                 <p className="leading-8 text-gray-700">{mountain.terrain}</p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
+              {/* <div className="bg-white rounded-xl shadow-sm p-6">
                 <h2 className="text-2xl font-semibold text-primary mb-4">Hazards</h2>
                 <p className="leading-8 text-gray-700">{mountain.hazards}</p>
-              </div>
+              </div> */}
+            </section>
+
+            <section className="mt-10">
+              <RouteSection mountain={mountain} />
             </section>
 
             <section className="mt-10">
@@ -503,10 +557,6 @@ export default function TrailDetail() {
               />
             </section>
 
-            <section className="mt-10">
-              <RouteSection mountain={mountain} />
-            </section>
-
             <TrailReportsSection mountainId={mountain.mountain_id} />
 
             <section className="mt-12">
@@ -521,18 +571,6 @@ export default function TrailDetail() {
                     <tr className="border-b">
                       <td className="font-semibold p-4">Location</td>
                       <td className="p-4">{mountain.location}</td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="font-semibold p-4">Difficulty</td>
-                      <td className="p-4">{mountain.difficulty}</td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="font-semibold p-4">Distance</td>
-                      <td className="p-4">{mountain.distance} km</td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="font-semibold p-4">Estimated Time</td>
-                      <td className="p-4">{mountain.estimated_time} hrs</td>
                     </tr>
                     <tr>
                       <td className="font-semibold p-4">Total Hikers</td>

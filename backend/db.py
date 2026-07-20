@@ -23,20 +23,18 @@ INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, 
 """
 
 WAYPOINTS_SEED_SQL = """
-INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, elevation_m, distance_from_start_km) VALUES
-(1, 1, 'Ampucao Trailhead', 'Starting point with registration and guide assignment.', 1500, 0.0),
-(1, 2, 'Gungal Rock', 'Panoramic viewpoint over the Itogon ridgelines.', 1700, 3.0),
-(1, 3, 'Pine Ridge', 'Shaded pine forest stretch before the final ascent.', 1750, 5.5),
-(1, 4, 'Mount Ulap Summit', 'Grassland summit with 360-degree views.', 1846, 8.0),
-(2, 1, 'Yangbew Trailhead', 'Starting point near La Trinidad.', 1400, 0.0),
-(2, 2, 'Flower Garden Junction', 'Seasonal wildflower fields.', 1500, 1.5),
-(2, 3, 'Rock Formation Viewpoint', 'Sunrise viewpoint over rocky outcrops.', 1550, 2.8),
-(2, 4, 'Mount Yangbew Summit', 'Short, rewarding summit point.', 1600, 4.0),
-(3, 1, 'Ambangeg Ranger Station', 'Registration and orientation point.', 2100, 0.0),
-(3, 2, 'Camp 1', 'First rest camp, tree line begins to thin.', 2400, 4.0),
-(3, 3, 'Camp 2', 'Second rest camp, common overnight stop.', 2500, 8.0),
-(3, 4, 'Mossy Forest', 'Dense mossy forest crossing before the grassland.', 2700, 13.0),
-(3, 5, 'Mount Pulag Summit', 'Third highest peak in the Philippines, sea of clouds.', 2926, 18.0);
+INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km) VALUES
+(1, 1,'Mount Ulap Eco-Trail','The official hiking route of Mount Ulap. This 9.4 km trail passes through scenic pine forests, the Ambanao Paway ridge, the iconic Gungal Rock, and ends at the 1,846-meter summit with panoramic views of the Cordillera mountain range.', 120.6312, 16.2904, 1846, 'Moderate', 4.5, 9.4),
+(1, 2, 'Ampucao Trailhead', 'One of the main access points to the Mount Ulap Eco-Trail, featuring registration facilities and the first panoramic views of the Itogon ridgelines.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5),
+(1, 3, 'Ambacao Paway Ridge', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5),
+(2, 1, 'Yangbew Trailhead', 'The main jump-off point for Mount Yangbew, also known as Little Pulag because of its grassland scenery resembling Mount Pulag.', 120.607052, 16.453989, 1446, 'Easy', 0.30, 3.2),
+(2, 2, 'Grassland Ridge', 'An open grassland section offering panoramic views of La Trinidad Valley and the surrounding mountains.', 120.5906, 16.4580, 1510, 'Easy', 0.3, 1.2),
+(2, 3, 'Rock Formation Viewpoint', 'A popular photo stop featuring natural rock formations overlooking the valley below.', 120.5925, 16.4605, 1560, 'Easy', 0.7, 2.3),
+(2, 4, 'Mount Yangbew Summit', 'The summit of Mount Yangbew offers breathtaking sunrise and sunset views over La Trinidad and Baguio City.', 120.5940, 16.4622, 1609, 'Easy', 1.1, 3.3),
+(3, 1, 'Ambangeg Trail', 'The most popular and beginner-friendly trail to Mount Pulag, often called the "Artista Trail". The summit is typically reached in 3 to 4 hours.', 121.08612, 16.52075, 2250, 'Easy', 4.0, 7.0),
+(3, 2, 'Akiki Trail', 'Known as the "Killer Trail", Akiki is recommended for experienced hikers due to its steep ascents and multi-day trek.', 120.8992, 16.5975, 2260, 'Hard', 14.0, 20.4),
+(3, 3, 'Tawangan Trail', 'A scenic trail passing through traditional Ibaloi communities, mossy forests, and grasslands before reaching the summit.', 120.89917, 16.5975, 2200, 'Moderate', 18.0, 12.0),
+(3, 4, 'Ambaguio Trail', 'A less frequently used route approaching Mount Pulag from Nueva Vizcaya, known for its long forest sections.', 121.0564, 16.5794, 2150, 'Hard', 24.0, 16.0);
 """
 
 
@@ -48,7 +46,7 @@ def get_connection():
         port=os.environ.get("PGPORT", "5432"),
         dbname=os.environ.get("PGDATABASE", "tarapeak"),
         user=os.environ.get("PGUSER", "postgres"),
-        password=os.environ.get("PGPASSWORD", "postgres"),
+        password=os.environ.get("PGPASSWORD", "postgres123"),
     )
 
 
@@ -91,7 +89,11 @@ def init_db():
             sequence_order INT NOT NULL,
             name VARCHAR(100) NOT NULL,
             description VARCHAR(200),
+            longitude FLOAT NOT NULL,
+            latitude FLOAT NOT NULL,
             elevation_m INT,
+            difficulty VARCHAR(20) NOT NULL,
+            estimated_time FLOAT NOT NULL,
             distance_from_start_km DECIMAL(4,1),
             CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
         )

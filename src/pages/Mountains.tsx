@@ -51,9 +51,9 @@ function TrailCard({ mountain, index }: { mountain: Mountain; index: number }) {
           </div>
           <div className="bg-surface-container-low p-sm rounded-lg">
             <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
-              DIFFICULTY
+              TERRAIN
             </span>
-            <span className="font-headline-md text-headline-md text-secondary">{mountain.difficulty}</span>
+            <span className="font-label-md text-label-md text-on-surface-variant">{mountain.terrain}</span>
           </div>
         </div>
       </div>

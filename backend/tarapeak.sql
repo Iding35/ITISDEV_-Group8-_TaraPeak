@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
-    email VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(50) DEFAULT 'user',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -12,13 +12,13 @@ CREATE TABLE IF NOT EXISTS mountains (
     mountain_id SERIAL PRIMARY KEY,
     mountain_name VARCHAR(50) NOT NULL,
     location VARCHAR(200),
-    description VARCHAR(200),
+    description TEXT,
     image_url VARCHAR(200),
-    estimated_time FLOAT,
-    difficulty VARCHAR(20),
-    distance FLOAT,
+    --estimated_time FLOAT,
+    --difficulty VARCHAR(20),
+    --distance FLOAT,
     terrain VARCHAR(100),
-    hazards VARCHAR(200),
+    --hazards VARCHAR(200),
     total_hikers INT DEFAULT 0
 );
 
@@ -54,13 +54,12 @@ CREATE TABLE IF NOT EXISTS gear_recommendations (
 
 CREATE TABLE IF NOT EXISTS trail_reports (
     report_id SERIAL PRIMARY KEY,
-    mountain_id INT NOT NULL,
-    user_id INT NOT NULL,
-    report_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    report_status VARCHAR(20),
-    report_description VARCHAR(200),
-    CONSTRAINT trail_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id),
-    CONSTRAINT trail_fk_users FOREIGN KEY (user_id) REFERENCES users(user_id)
+    mountain_id INT REFERENCES mountains(mountain_id) ON DELETE CASCADE,
+    user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    condition VARCHAR(100) NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS route_waypoints (
@@ -68,8 +67,12 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
     mountain_id INT NOT NULL,
     sequence_order INT NOT NULL,
     name VARCHAR(100) NOT NULL,
-    description VARCHAR(200),
+    description TEXT,
+    longitude FLOAT NOT NULL, --add
+    latitude FLOAT NOT NULL, --add
     elevation_m INT,
+    difficulty VARCHAR(20) NOT NULL, --add
+    estimated_time FLOAT NOT NULL, --add
     distance_from_start_km DECIMAL(4,1),
     CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
 );
@@ -87,54 +90,10 @@ CREATE TABLE IF NOT EXISTS ai_analysis_cache (
 
 
 -- BAGUIO MOUNTAINS TABLE --
-INSERT INTO mountains (
-    mountain_name,
-    location,
-    description,
-    image_url,
-    estimated_time,
-    difficulty,
-    distance,
-    terrain,
-    hazards,
-    total_hikers
-) VALUES
-(
-    'Mount Ulap',
-    'Itogon, Benguet',
-    'A beginner-friendly mountain known for its pine forests, scenic grasslands, and panoramic ridge views.',
-    'img/mt-ulap.svg',
-    4.5,
-    'Easy',
-    8.0,
-    'Pine Forest and Grassland',
-    'Slippery trails during rain, steep descents',
-    100
-),
-(
-    'Mount Yangbew',
-    'La Trinidad, Benguet',
-    'A short hiking destination famous for its sunrise views, rock formations, and colorful flower gardens.',
-    'img/mt-yangbew.svg',
-    2.0,
-    'Easy',
-    4.0,
-    'Grassland and Rocky Trail',
-    'Slippery rocks, strong winds',
-    100
-),
-(
-    'Mount Pulag',
-    'Kabayan, Benguet',
-    'The third highest mountain in the Philippines, renowned for its sea of clouds, mossy forests, and breathtaking sunrise.',
-    'img/mt-pulag.svg',
-    10.0,
-    'Hard',
-    18.0,
-    'Mossy Forest and Grassland',
-    'Cold temperatures, steep ascents, rapidly changing weather',
-    100
-);
+INSERT INTO mountains (mountain_name, location, description, image_url, terrain, total_hikers) VALUES
+('Mount Ulap', 'Itogon, Benguet', 'A beginner-friendly mountain known for its pine forests, scenic grasslands, and panoramic ridge views.', 'img/mt-ulap.svg', 'Pine Forest', 100),
+('Mount Yangbew', 'La Trinidad, Benguet', 'A short hiking destination famous for its sunrise views, rock formations, and colorful flower gardens.', 'img/mt-yangbew.svg', 'Grassland', 100),
+('Mount Pulag', 'Kabayan, Benguet', 'The third highest mountain in the Philippines, renowned for its sea of clouds, mossy forests, and breathtaking sunrise.', 'img/mt-pulag.svg', 'Mossy Forest', 100);
 
 -- WEATHER FORECASTS --
 INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed) VALUES
@@ -152,32 +111,28 @@ INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, 
 (3, CURRENT_DATE + 3, 8.5, 83, 27);
 
 -- ROUTE WAYPOINTS --
-INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, elevation_m, distance_from_start_km) VALUES
-(1, 1, 'Ampucao Trailhead', 'Starting point with registration and guide assignment.', 1500, 0.0),
-(1, 2, 'Gungal Rock', 'Panoramic viewpoint over the Itogon ridgelines.', 1700, 3.0),
-(1, 3, 'Pine Ridge', 'Shaded pine forest stretch before the final ascent.', 1750, 5.5),
-(1, 4, 'Mount Ulap Summit', 'Grassland summit with 360-degree views.', 1846, 8.0),
+INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km) VALUES
+-- ==========================
+-- MOUNT ULAP
+-- ==========================
+(1, 1,'Mount Ulap Eco-Trail','The official hiking route of Mount Ulap. This 9.4 km trail passes through scenic pine forests, the Ambanao Paway ridge, the iconic Gungal Rock, and ends at the 1,846-meter summit with panoramic views of the Cordillera mountain range.', 120.6312, 16.2904, 1846, 'Moderate', 4.5, 9.4),
+(1, 2, 'Ampucao Trailhead', 'One of the main access points to the Mount Ulap Eco-Trail, featuring registration facilities and the first panoramic views of the Itogon ridgelines.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5),
+(1, 3, 'Ambacao Paway Ridge', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5),
+-- ==========================
+-- MOUNT YANGBEW
+-- ==========================
+(2, 1, 'Yangbew Trailhead', 'The main jump-off point for Mount Yangbew, also known as Little Pulag because of its grassland scenery resembling Mount Pulag.', 120.607052, 16.453989, 1446, 'Easy', 0.30, 3.2),
+(2, 2, 'Grassland Ridge', 'An open grassland section offering panoramic views of La Trinidad Valley and the surrounding mountains.', 120.5906, 16.4580, 1510, 'Easy', 0.3, 1.2),
+(2, 3, 'Rock Formation Viewpoint', 'A popular photo stop featuring natural rock formations overlooking the valley below.', 120.5925, 16.4605, 1560, 'Easy', 0.7, 2.3),
+(2, 4, 'Mount Yangbew Summit', 'The summit of Mount Yangbew offers breathtaking sunrise and sunset views over La Trinidad and Baguio City.', 120.5940, 16.4622, 1609, 'Easy', 1.1, 3.3),
 
-(2, 1, 'Yangbew Trailhead', 'Starting point near La Trinidad.', 1400, 0.0),
-(2, 2, 'Flower Garden Junction', 'Seasonal wildflower fields.', 1500, 1.5),
-(2, 3, 'Rock Formation Viewpoint', 'Sunrise viewpoint over rocky outcrops.', 1550, 2.8),
-(2, 4, 'Mount Yangbew Summit', 'Short, rewarding summit point.', 1600, 4.0),
-
-(3, 1, 'Ambangeg Ranger Station', 'Registration and orientation point.', 2100, 0.0),
-(3, 2, 'Camp 1', 'First rest camp, tree line begins to thin.', 2400, 4.0),
-(3, 3, 'Camp 2', 'Second rest camp, common overnight stop.', 2500, 8.0),
-(3, 4, 'Mossy Forest', 'Dense mossy forest crossing before the grassland.', 2700, 13.0),
-(3, 5, 'Mount Pulag Summit', 'Third highest peak in the Philippines, sea of clouds.', 2926, 18.0);
-
-CREATE TABLE IF NOT EXISTS trail_reports (
-    report_id SERIAL PRIMARY KEY,
-    mountain_id INT REFERENCES mountains(mountain_id) ON DELETE CASCADE,
-    user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
-    rating INT CHECK (rating >= 1 AND rating <= 5),
-    condition VARCHAR(100) NOT NULL,
-    comment TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+-- ==========================
+-- MOUNT PULAG
+-- ==========================
+(3, 1, 'Ambangeg Trail', 'The most popular and beginner-friendly trail to Mount Pulag, often called the "Artista Trail". The summit is typically reached in 3 to 4 hours.', 121.08612, 16.52075, 2250, 'Easy', 4.0, 7.0),
+(3, 2, 'Akiki Trail', 'Known as the "Killer Trail", Akiki is recommended for experienced hikers due to its steep ascents and multi-day trek.', 120.8992, 16.5975, 2260, 'Hard', 14.0, 20.4),
+(3, 3, 'Tawangan Trail', 'A scenic trail passing through traditional Ibaloi communities, mossy forests, and grasslands before reaching the summit.', 120.89917, 16.5975, 2200, 'Moderate', 18.0, 12.0),
+(3, 4, 'Ambaguio Trail', 'A less frequently used route approaching Mount Pulag from Nueva Vizcaya, known for its long forest sections.', 121.0564, 16.5794, 2150, 'Hard', 24.0, 16.0);
 
 INSERT INTO users (first_name, last_name, email, password, role) VALUES
 ('Alex', 'Rivera', 'alex.rivera@example.com', 'pass1234', 'user'),
