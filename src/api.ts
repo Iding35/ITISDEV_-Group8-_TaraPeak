@@ -190,7 +190,10 @@ export async function fetchDifficultyAnalysis(mountainId: number): Promise<strin
 }
 
 export async function fetchSafetyAnalysis(mountainId: number, date?: string): Promise<string> {
-  const res = await fetch(`${API_URL}/ai/difficulty/${mountainId}`, { method: 'POST' });
+  const url = date
+    ? `${API_URL}/ai/safety/${mountainId}?date=${date}`
+    : `${API_URL}/ai/safety/${mountainId}`;
+  const res = await fetch(url, { method: 'POST' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Failed' }));
     throw new Error(err.detail || 'Safety analysis failed');
