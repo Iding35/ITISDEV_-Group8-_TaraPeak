@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS weather_forecasts (
     temperature DECIMAL(3,1),
     humidity INT,
     wind_speed INT,
-    CONSTRAINT weather_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
+    CONSTRAINT weather_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id),
+    CONSTRAINT weather_unique UNIQUE (mountain_id, hiking_date)
 );
 
 
@@ -52,17 +53,6 @@ CREATE TABLE IF NOT EXISTS gear_recommendations (
     CONSTRAINT gear_fk_plans FOREIGN KEY (plan_id) REFERENCES plans(plan_id)
 );
 
-CREATE TABLE IF NOT EXISTS trail_reports (
-    report_id SERIAL PRIMARY KEY,
-    mountain_id INT REFERENCES mountains(mountain_id) ON DELETE CASCADE,
-    waypoint_id INT REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE, -- Tied to specific trail/waypoint
-    user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
-    rating INT CHECK (rating >= 1 AND rating <= 5),
-    condition VARCHAR(100) NOT NULL,
-    comment TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS route_waypoints (
     waypoint_id SERIAL PRIMARY KEY,
     mountain_id INT NOT NULL,
@@ -76,6 +66,27 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
     estimated_time FLOAT NOT NULL, --add
     distance_from_start_km DECIMAL(4,1),
     CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
+);
+
+CREATE TABLE IF NOT EXISTS trail_reports (
+    report_id SERIAL PRIMARY KEY,
+    mountain_id INT REFERENCES mountains(mountain_id) ON DELETE CASCADE,
+    waypoint_id INT REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE, -- Tied to specific trail/waypoint
+    user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    condition VARCHAR(100) NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS plan_members (
+    plan_member_id SERIAL PRIMARY KEY,
+    plan_id INT NOT NULL REFERENCES plans(plan_id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    invited_by INT REFERENCES users(user_id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT plan_members_unique UNIQUE (plan_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS ai_analysis_cache (
@@ -149,8 +160,8 @@ INSERT INTO trail_reports (mountain_id, waypoint_id, user_id, rating, condition,
 (1, 2, 2, 5, 'Clear & Well-Marked', 'Great visibility early in the morning near Ampucao Trailhead! Markings are clear.', '2026-07-13 14:15:00+00'),
 
 -- Mount Yangbew Reports
-(2, 2, 3, 3, 'Overgrown Vegetation', 'Lots of tall grass along Grassland Ridge. Wear long sleeves to protect yourself.', '2026-07-13 11:00:00+00'),
+(2, 5, 3, 3, 'Overgrown Vegetation', 'Lots of tall grass along Grassland Ridge. Wear long sleeves to protect yourself.', '2026-07-13 11:00:00+00'),
 (2, 4, 4, 5, 'Clear & Dry', 'Short and easy hike at Mount Yangbew Summit. Excellent conditions throughout.', '2026-07-13 16:20:00+00'),
 
 -- Mount Pulag Reports
-(3, 1, 5, 3, 'Foggy / Low Visibility', 'Very cold and low visibility along Ambangeg Trail. Bring proper cold weather gear.', '2026-07-13 05:45:00+00');
+(3, 8, 5, 3, 'Foggy / Low Visibility', 'Very cold and low visibility along Ambangeg Trail. Bring proper cold weather gear.', '2026-07-13 05:45:00+00');

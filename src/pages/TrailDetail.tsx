@@ -118,10 +118,13 @@ function SavePlanSection({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!date || !selectedWaypoint) return;
+    if (!date || !selectedWaypoint || !user) {
+      setWeather(null);
+      return;
+    }
     let cancelled = false;
     setCheckingWeather(true);
-    checkWeather(mountainId, date)
+    checkWeather(mountainId, date, selectedWaypoint.latitude, selectedWaypoint.longitude)
       .then((result) => {
         if (!cancelled) setWeather(result);
       })
@@ -134,7 +137,7 @@ function SavePlanSection({
     return () => {
       cancelled = true;
     };
-  }, [mountainId, date, selectedWaypoint]);
+  }, [mountainId, date, selectedWaypoint, user]);
 
   async function handleSave() {
     setSaveStatus('saving');
@@ -182,15 +185,23 @@ function SavePlanSection({
           </label>
 
           <div className="mt-4">
-            {checkingWeather && <p className="text-gray-500 text-sm">Checking conditions for this date…</p>}
-            {!checkingWeather && weather?.forecast && (
+            {!user && (
+              <p className="text-gray-600 text-sm">
+                <Link to="/login" className="text-primary font-semibold hover:underline">
+                  Log in
+                </Link>{' '}
+                to check the weather forecast for this date.
+              </p>
+            )}
+            {user && checkingWeather && <p className="text-gray-500 text-sm">Checking conditions for this date…</p>}
+            {user && !checkingWeather && weather?.forecast && (
               <div className="flex flex-wrap gap-4 rounded-lg bg-surface-container-low p-4 text-sm">
                 <span>🌡️ {weather.forecast.temperature}°C</span>
                 <span>💧 {weather.forecast.humidity}% humidity</span>
                 <span>💨 {weather.forecast.wind_speed} km/h wind</span>
               </div>
             )}
-            {!checkingWeather && weather && !weather.forecast && (
+            {user && !checkingWeather && weather && !weather.forecast && (
               <p className="text-gray-500 text-sm">No weather forecast available for this date yet.</p>
             )}
           </div>
@@ -241,6 +252,7 @@ function RouteSection({
   onSelectWaypoint: (wp: Waypoint) => void;
   date: string;
 }) {
+  const { user } = useAuth();
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [loadingWaypoints, setLoadingWaypoints] = useState(true);
   const [plan, setPlan] = useState<string | null>(null);
@@ -274,6 +286,12 @@ function RouteSection({
     hard: 3,
     critical: 4,
   };
+
+  const pacingDisabledReason = !user
+    ? 'Log in to generate an AI pacing plan.'
+    : !selectedWaypoint || !date
+      ? 'Please select a checkpoint and hiking date to generate an AI pacing plan.'
+      : undefined;
 
   const sortedWaypoints = [...waypoints].sort((a, b) => {
     const diffA = difficultyWeight[a.difficulty?.toLowerCase() || ''] || 99;
@@ -399,9 +417,9 @@ function RouteSection({
             <button
               type="button"
               onClick={handleOptimize}
-              disabled={loadingPlan || !selectedWaypoint || !date}
+              disabled={loadingPlan || !!pacingDisabledReason}
               className="shrink-0 rounded-xl bg-primary px-4 py-2.5 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
-              title={(!selectedWaypoint || !date) ? "Please select a checkpoint and hiking date to generate an AI pacing plan." : undefined}
+              title={pacingDisabledReason}
             >
               {loadingPlan ? 'Optimizing…' : 'Generate AI Pacing Plan'}
             </button>
@@ -417,10 +435,8 @@ function RouteSection({
           </div>
         )}
 
-        {(!selectedWaypoint || !date) && !plan && (
-          <p className="text-gray-500 text-sm mt-2">
-            Please select a checkpoint and hiking date to generate an AI pacing plan.
-          </p>
+        {pacingDisabledReason && !plan && (
+          <p className="text-gray-500 text-sm mt-2">{pacingDisabledReason}</p>
         )}
 
         {plan && (
@@ -506,10 +522,17 @@ function TrailReportsSection({ mountainId }: { mountainId: number }) {
 
 export default function TrailDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [mountain, setMountain] = useState<Mountain | null>(null);
   const [loading, setLoading] = useState(true);
   const [plannedDate, setPlannedDate] = useState('');
   const [selectedWaypoint, setSelectedWaypoint] = useState<Waypoint | null>(null);
+
+  const aiDisabledReason = !user
+    ? 'Log in to run AI analysis.'
+    : !selectedWaypoint || !plannedDate
+      ? 'Select a checkpoint and hiking date first to run AI analysis.'
+      : undefined;
 
   useEffect(() => {
     if (!id) return;
@@ -577,15 +600,6 @@ export default function TrailDetail() {
 
 
             <section className="mt-10">
-              <SavePlanSection
-                mountainId={mountain.mountain_id}
-                date={plannedDate}
-                onDateChange={setPlannedDate}
-                selectedWaypoint={selectedWaypoint}
-              />
-            </section>
-
-            <section className="mt-10">
               <RouteSection
                 mountain={mountain}
                 selectedWaypoint={selectedWaypoint}
@@ -594,21 +608,30 @@ export default function TrailDetail() {
               />
             </section>
 
+            <section className="mt-10">
+              <SavePlanSection
+                mountainId={mountain.mountain_id}
+                date={plannedDate}
+                onDateChange={setPlannedDate}
+                selectedWaypoint={selectedWaypoint}
+              />
+            </section>
+
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
               <AIAnalysisCard
                 title="AI Difficulty Analysis"
                 icon="trending_up"
                 buttonLabel="Analyze Difficulty"
-                disabled={!selectedWaypoint || !plannedDate}
-                disabledHint="Select a checkpoint and hiking date first to run difficulty analysis."
+                disabled={!!aiDisabledReason}
+                disabledHint={aiDisabledReason}
                 fetcher={() => fetchDifficultyAnalysis(mountain.mountain_id)}
               />
               <AIAnalysisCard
                 title="AI Safety Analysis"
                 icon="health_and_safety"
                 buttonLabel={plannedDate ? `Analyze Safety for ${plannedDate}` : 'Analyze Safety'}
-                disabled={!selectedWaypoint || !plannedDate}
-                disabledHint="Select a checkpoint and hiking date first to run safety analysis."
+                disabled={!!aiDisabledReason}
+                disabledHint={aiDisabledReason}
                 fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, plannedDate)}
               />
             </section>

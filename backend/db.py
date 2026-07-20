@@ -111,6 +111,46 @@ def init_db():
             CONSTRAINT ai_cache_unique UNIQUE (mountain_id, analysis_type, cache_key)
         )
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS trail_reports (
+            report_id SERIAL PRIMARY KEY,
+            mountain_id INT REFERENCES mountains(mountain_id) ON DELETE CASCADE,
+            waypoint_id INT REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE,
+            user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
+            rating INT CHECK (rating >= 1 AND rating <= 5),
+            condition VARCHAR(100) NOT NULL,
+            comment TEXT NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute(
+        "ALTER TABLE trail_reports ADD COLUMN IF NOT EXISTS waypoint_id "
+        "INT REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE"
+    )
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS plan_members (
+            plan_member_id SERIAL PRIMARY KEY,
+            plan_id INT NOT NULL REFERENCES plans(plan_id) ON DELETE CASCADE,
+            user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            invited_by INT REFERENCES users(user_id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT plan_members_unique UNIQUE (plan_id, user_id)
+        )
+    """)
+
+    cursor.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'weather_unique'
+            ) THEN
+                ALTER TABLE weather_forecasts ADD CONSTRAINT weather_unique UNIQUE (mountain_id, hiking_date);
+            END IF;
+        END $$;
+    """)
     conn.commit()
 
     cursor.execute("SELECT COUNT(*) FROM route_waypoints")
@@ -154,6 +194,39 @@ def save_cached_analysis(mountain_id: int, analysis_type: str, content: str, cac
         DO UPDATE SET content = EXCLUDED.content, created_at = CURRENT_TIMESTAMP
         """,
         (mountain_id, analysis_type, cache_key, content),
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def get_weather_forecast(mountain_id: int, hiking_date) -> Optional[dict]:
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute(
+        "SELECT * FROM weather_forecasts WHERE mountain_id = %s AND hiking_date = %s",
+        (mountain_id, hiking_date),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return dict(row) if row else None
+
+
+def save_weather_forecast(
+    mountain_id: int, hiking_date, temperature, humidity, wind_speed
+) -> None:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (mountain_id, hiking_date)
+        DO UPDATE SET temperature = EXCLUDED.temperature, humidity = EXCLUDED.humidity,
+                       wind_speed = EXCLUDED.wind_speed
+        """,
+        (mountain_id, hiking_date, temperature, humidity, wind_speed),
     )
     conn.commit()
     cursor.close()

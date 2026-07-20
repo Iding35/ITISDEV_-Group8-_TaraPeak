@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";    
 import { useAuth } from "../context/AuthContext";
 import {
+  createTrailReport,
   fetchMountains,
   fetchWaypoints,
   type Mountain,
@@ -38,6 +39,8 @@ export default function Dashboard() {
   const [loadingTrails, setLoadingTrails] = useState(false);
 
   const [showTrailReport, setShowTrailReport] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadMountains() {
@@ -86,7 +89,7 @@ export default function Dashboard() {
     loadTrails();
   }, [selectedMountain]);
 
-  function submitReport(e: React.FormEvent) {
+  async function submitReport(e: React.FormEvent) {
     e.preventDefault();
 
     if (!selectedMountain) {
@@ -109,14 +112,25 @@ export default function Dashboard() {
       return;
     }
 
-    // TODO:
-    // await createTrailReport(...)
+    setSubmitStatus("submitting");
+    setSubmitError(null);
 
-    alert("Trail report submitted!");
+    try {
+      await createTrailReport(Number(selectedMountain), {
+        waypoint_id: Number(selectedWaypoint),
+        rating,
+        condition,
+        comment,
+      });
 
-    setRating(0);
-    setComment("");
-    setCondition(CONDITIONS[0]);
+      setSubmitStatus("success");
+      setRating(0);
+      setComment("");
+      setCondition(CONDITIONS[0]);
+    } catch (err) {
+      setSubmitStatus("error");
+      setSubmitError(err instanceof Error ? err.message : "Could not submit trail report");
+    }
   }
 
   function Star({
@@ -338,11 +352,21 @@ export default function Dashboard() {
               />
             </div>
 
+            {submitStatus === "success" && (
+              <p className="text-primary font-semibold text-sm">
+                Thanks! Your trail report was submitted.
+              </p>
+            )}
+            {submitStatus === "error" && submitError && (
+              <p className="text-red-600 text-sm">{submitError}</p>
+            )}
+
             <button
               type="submit"
-              className="w-full bg-primary hover:opacity-90 transition text-white font-semibold rounded-xl py-4"
+              disabled={submitStatus === "submitting"}
+              className="w-full bg-primary hover:opacity-90 transition text-white font-semibold rounded-xl py-4 disabled:opacity-50"
             >
-              Submit Trail Report
+              {submitStatus === "submitting" ? "Submitting…" : "Submit Trail Report"}
             </button>
 
           </form>
