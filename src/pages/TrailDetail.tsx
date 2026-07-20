@@ -17,7 +17,6 @@ import {
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 
-
 /** Renders **bold** segments and preserves line breaks from AI text responses. */
 function AnalysisText({ text }: { text: string }) {
   return (
@@ -100,6 +99,140 @@ function AIAnalysisCard({
   );
 }
 
+function WaypointSelectionSection({
+  mountainId,
+  selectedWaypoint,
+  onSelectWaypoint,
+}: {
+  mountainId: number;
+  selectedWaypoint: Waypoint | null;
+  onSelectWaypoint: (wp: Waypoint) => void;
+}) {
+  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
+  const [loadingWaypoints, setLoadingWaypoints] = useState(true);
+
+  useEffect(() => {
+    fetchWaypoints(mountainId)
+      .then(setWaypoints)
+      .catch(() => setWaypoints([]))
+      .finally(() => setLoadingWaypoints(false));
+  }, [mountainId]);
+
+  const difficultyWeight: Record<string, number> = {
+    easy: 1,
+    moderate: 2,
+    medium: 2,
+    hard: 3,
+    critical: 4,
+  };
+
+  const sortedWaypoints = [...waypoints].sort((a, b) => {
+    const diffA = difficultyWeight[a.difficulty?.toLowerCase() || ''] || 99;
+    const diffB = difficultyWeight[b.difficulty?.toLowerCase() || ''] || 99;
+
+    if (diffA !== diffB) {
+      return diffA - diffB;
+    }
+    return (a.sequence_order || 0) - (b.sequence_order || 0);
+  });
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-2">
+        <span aria-hidden="true" className="material-symbols-outlined">
+          map
+        </span>
+        1. Select Trail Checkpoint
+      </h2>
+      <p className="text-sm text-gray-500 mb-4">
+        Choose a checkpoint below to filter trail reports and start planning your route.
+      </p>
+
+      {loadingWaypoints && <p className="text-gray-500 text-sm">Loading trail checkpoints…</p>}
+
+      {!loadingWaypoints && sortedWaypoints.length > 0 && (
+        <ol className="flex flex-col gap-3">
+          {sortedWaypoints.map((w) => {
+            const isSelected = selectedWaypoint?.waypoint_id === w.waypoint_id;
+            const difficultyKey = w.difficulty?.toLowerCase();
+            let difficultyStyle = 'bg-slate-100 text-slate-700 border-slate-200/60';
+
+            if (difficultyKey === 'easy') {
+              difficultyStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
+            } else if (difficultyKey === 'moderate' || difficultyKey === 'medium') {
+              difficultyStyle = 'bg-yellow-50 text-yellow-800 border-yellow-200/80';
+            } else if (difficultyKey === 'hard') {
+              difficultyStyle = 'bg-orange-50 text-orange-700 border-orange-200/80';
+            } else if (difficultyKey === 'critical') {
+              difficultyStyle = 'bg-red-50 text-red-700 border-red-200/80';
+            }
+
+            return (
+              <li
+                key={w.waypoint_id}
+                onClick={() => onSelectWaypoint(w)}
+                className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${
+                  isSelected
+                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
+                    : 'border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-sm'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="checkpoint"
+                  checked={isSelected}
+                  onChange={() => onSelectWaypoint(w)}
+                  className="mt-1.5 h-4 w-4 text-primary focus:ring-primary accent-primary"
+                />
+
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                  {w.sequence_order}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="font-semibold text-slate-900 text-base leading-snug truncate">
+                      {w.name}
+                    </h4>
+
+                    <div className="flex items-center gap-1.5 text-xs">
+                      {w.difficulty && (
+                        <span className={`px-2 py-0.5 rounded-md font-medium border capitalize ${difficultyStyle}`}>
+                          {w.difficulty}
+                        </span>
+                      )}
+
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
+                        {w.distance_from_start_km} km • {w.elevation_m}m
+                      </span>
+
+                      {w.estimated_time && (
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
+                          {w.estimated_time} hrs
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {w.description && (
+                    <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
+                      {w.description}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {!loadingWaypoints && sortedWaypoints.length === 0 && (
+        <p className="text-gray-500 text-sm">No trail checkpoint data available for this mountain yet.</p>
+      )}
+    </div>
+  );
+}
+
 function SavePlanSection({
   mountainId,
   date,
@@ -155,9 +288,9 @@ function SavePlanSection({
     <div className="bg-white rounded-xl shadow-sm p-6">
       <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-4">
         <span aria-hidden="true" className="material-symbols-outlined">
-          bookmark_add
+          calendar_month
         </span>
-        Save a Hiking Plan
+        2. Select Date &amp; Save Plan
       </h2>
 
       {!selectedWaypoint ? (
@@ -241,36 +374,25 @@ function SavePlanSection({
   );
 }
 
-function RouteSection({
-  mountain,
+function RouteOptimizationSection({
+  mountainId,
   selectedWaypoint,
-  onSelectWaypoint,
   date,
 }: {
-  mountain: Mountain;
+  mountainId: number;
   selectedWaypoint: Waypoint | null;
-  onSelectWaypoint: (wp: Waypoint) => void;
   date: string;
 }) {
   const { user } = useAuth();
-  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
-  const [loadingWaypoints, setLoadingWaypoints] = useState(true);
   const [plan, setPlan] = useState<string | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchWaypoints(mountain.mountain_id)
-      .then(setWaypoints)
-      .catch(() => setWaypoints([]))
-      .finally(() => setLoadingWaypoints(false));
-  }, [mountain.mountain_id]);
 
   async function handleOptimize() {
     setLoadingPlan(true);
     setError(null);
     try {
-      const result = await fetchRouteOptimization(mountain.mountain_id);
+      const result = await fetchRouteOptimization(mountainId);
       setPlan(result.plan);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Route optimization failed');
@@ -279,177 +401,71 @@ function RouteSection({
     }
   }
 
-  const difficultyWeight: Record<string, number> = {
-    easy: 1,
-    moderate: 2,
-    medium: 2,
-    hard: 3,
-    critical: 4,
-  };
-
   const pacingDisabledReason = !user
     ? 'Log in to generate an AI pacing plan.'
     : !selectedWaypoint || !date
       ? 'Please select a checkpoint and hiking date to generate an AI pacing plan.'
       : undefined;
 
-  const sortedWaypoints = [...waypoints].sort((a, b) => {
-    const diffA = difficultyWeight[a.difficulty?.toLowerCase() || ''] || 99;
-    const diffB = difficultyWeight[b.difficulty?.toLowerCase() || ''] || 99;
-
-    if (diffA !== diffB) {
-      return diffA - diffB;
-    }
-    return (a.sequence_order || 0) - (b.sequence_order || 0);
-  });
-
   return (
-    <div className="flex flex-col gap-6">
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-2">
-          <span aria-hidden="true" className="material-symbols-outlined">
-            map
-          </span>
-          Available Trail Checkpoints
-        </h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Select a checkpoint below to enable date picking and safety evaluation.
-        </p>
-
-        {loadingWaypoints && <p className="text-gray-500 text-sm">Loading trail checkpoints…</p>}
-
-        {!loadingWaypoints && sortedWaypoints.length > 0 && (
-          <ol className="flex flex-col gap-3">
-            {sortedWaypoints.map((w) => {
-              const isSelected = selectedWaypoint?.waypoint_id === w.waypoint_id;
-              const difficultyKey = w.difficulty?.toLowerCase();
-              let difficultyStyle = "bg-slate-100 text-slate-700 border-slate-200/60";
-
-              if (difficultyKey === "easy") {
-                difficultyStyle = "bg-emerald-50 text-emerald-700 border-emerald-200/80";
-              } else if (difficultyKey === "moderate" || difficultyKey === "medium") {
-                difficultyStyle = "bg-yellow-50 text-yellow-800 border-yellow-200/80";
-              } else if (difficultyKey === "hard") {
-                difficultyStyle = "bg-orange-50 text-orange-700 border-orange-200/80";
-              } else if (difficultyKey === "critical") {
-                difficultyStyle = "bg-red-50 text-red-700 border-red-200/80";
-              }
-
-              return (
-                <li
-                  key={w.waypoint_id}
-                  onClick={() => onSelectWaypoint(w)}
-                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${isSelected
-                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
-                    : 'border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-sm'
-                    }`}
-                >
-                  <input
-                    type="radio"
-                    name="checkpoint"
-                    checked={isSelected}
-                    onChange={() => onSelectWaypoint(w)}
-                    className="mt-1.5 h-4 w-4 text-primary focus:ring-primary accent-primary"
-                  />
-
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                    {w.sequence_order}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h4 className="font-semibold text-slate-900 text-base leading-snug truncate">
-                        {w.name}
-                      </h4>
-
-                      <div className="flex items-center gap-1.5 text-xs">
-                        {w.difficulty && (
-                          <span className={`px-2 py-0.5 rounded-md font-medium border capitalize ${difficultyStyle}`}>
-                            {w.difficulty}
-                          </span>
-                        )}
-
-                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
-                          {w.distance_from_start_km} km • {w.elevation_m}m
-                        </span>
-
-                        {w.estimated_time && (
-                          <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
-                            {w.estimated_time} hrs
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {w.description && (
-                      <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
-                        {w.description}
-                      </p>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-
-        {!loadingWaypoints && sortedWaypoints.length === 0 && (
-          <p className="text-gray-500 text-sm">No trail checkpoint data available for this mountain yet.</p>
-        )}
-      </div>
-
-
-      <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary">
-              <span aria-hidden="true" className="material-symbols-outlined">
-                route
-              </span>
-              AI Route &amp; Pacing Optimization
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Generate a personalized pacing schedule and rest-stop recommendations based on trail elevation.
-            </p>
-          </div>
-
-          {!plan && waypoints.length > 0 && (
-            <button
-              type="button"
-              onClick={handleOptimize}
-              disabled={loadingPlan || !!pacingDisabledReason}
-              className="shrink-0 rounded-xl bg-primary px-4 py-2.5 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
-              title={pacingDisabledReason}
-            >
-              {loadingPlan ? 'Optimizing…' : 'Generate AI Pacing Plan'}
-            </button>
-          )}
+    <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary">
+            <span aria-hidden="true" className="material-symbols-outlined">
+              route
+            </span>
+            AI Route &amp; Pacing Optimization
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Generate a personalized pacing schedule and rest-stop recommendations based on trail elevation.
+          </p>
         </div>
 
-        {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-
-        {loadingPlan && (
-          <div className="flex items-center gap-3 text-gray-500 mt-3">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            Working out the best pacing plan…
-          </div>
-        )}
-
-        {pacingDisabledReason && !plan && (
-          <p className="text-gray-500 text-sm mt-2">{pacingDisabledReason}</p>
-        )}
-
-        {plan && (
-          <div className="mt-4 border-t pt-4">
-            <AnalysisText text={plan} />
-          </div>
+        {!plan && (
+          <button
+            type="button"
+            onClick={handleOptimize}
+            disabled={loadingPlan || !!pacingDisabledReason}
+            className="shrink-0 rounded-xl bg-primary px-4 py-2.5 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+            title={pacingDisabledReason}
+          >
+            {loadingPlan ? 'Optimizing…' : 'Generate AI Pacing Plan'}
+          </button>
         )}
       </div>
+
+      {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+
+      {loadingPlan && (
+        <div className="flex items-center gap-3 text-gray-500 mt-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          Working out the best pacing plan…
+        </div>
+      )}
+
+      {pacingDisabledReason && !plan && (
+        <p className="text-gray-500 text-sm mt-2">{pacingDisabledReason}</p>
+      )}
+
+      {plan && (
+        <div className="mt-4 border-t pt-4">
+          <AnalysisText text={plan} />
+        </div>
+      )}
     </div>
   );
 }
 
-function TrailReportsSection({ mountainId }: { mountainId: number }) {
+function TrailReportsSection({
+  mountainId,
+  selectedWaypoint,
+  onClearWaypoint,
+}: {
+  mountainId: number;
+  selectedWaypoint: Waypoint | null;
+  onClearWaypoint?: () => void;
+}) {
   const [reports, setReports] = useState<TrailReport[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -466,23 +482,61 @@ function TrailReportsSection({ mountainId }: { mountainId: number }) {
       .finally(() => setLoading(false));
   }, [mountainId]);
 
+  const filteredReports = selectedWaypoint
+    ? reports.filter((r) => r.waypoint_id === selectedWaypoint.waypoint_id)
+    : reports;
+
   return (
     <section className="mt-12">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold text-primary">Trail Reports</h2>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-primary">Trail Reports</h2>
+          {selectedWaypoint ? (
+            <p className="text-sm text-gray-500 mt-1">
+              Showing reports for: <span className="font-semibold text-primary">{selectedWaypoint.name}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500 mt-1">Showing all reports for this trail.</p>
+          )}
+        </div>
+
+        {selectedWaypoint && onClearWaypoint && (
+          <button
+            type="button"
+            onClick={onClearWaypoint}
+            className="text-sm text-primary underline hover:text-primary/80 font-medium"
+          >
+            Show All Reports
+          </button>
+        )}
       </div>
 
       {loading && <p className="text-gray-500 text-sm">Loading reports...</p>}
 
-      {!loading && reports.length === 0 && (
+      {!loading && filteredReports.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
-          No trail reports recorded yet.
+          {selectedWaypoint ? (
+            <div>
+              <p>No trail reports recorded for {selectedWaypoint.name} yet.</p>
+              {onClearWaypoint && (
+                <button
+                  type="button"
+                  onClick={onClearWaypoint}
+                  className="mt-2 text-sm text-primary font-semibold underline"
+                >
+                  View all mountain reports ({reports.length})
+                </button>
+              )}
+            </div>
+          ) : (
+            'No trail reports recorded yet.'
+          )}
         </div>
       )}
 
-      {!loading && reports.length > 0 && (
+      {!loading && filteredReports.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {reports.map((report, idx) => (
+          {filteredReports.map((report, idx) => (
             <div
               key={report.report_id ?? idx}
               className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col justify-between"
@@ -577,7 +631,6 @@ export default function TrailDetail() {
             </section>
 
             <section className="mt-8">
-
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <table className="w-full">
                   <tbody>
@@ -589,7 +642,7 @@ export default function TrailDetail() {
                       <td className="font-semibold p-4">Terrain</td>
                       <td className="p-4">{mountain.terrain}</td>
                     </tr>
-                    <tr >
+                    <tr>
                       <td className="font-semibold p-4">Total Hikers</td>
                       <td className="p-4">{mountain.total_hikers}</td>
                     </tr>
@@ -598,16 +651,16 @@ export default function TrailDetail() {
               </div>
             </section>
 
-
+            {/* Step 1: Waypoint Selection */}
             <section className="mt-10">
-              <RouteSection
-                mountain={mountain}
+              <WaypointSelectionSection
+                mountainId={mountain.mountain_id}
                 selectedWaypoint={selectedWaypoint}
                 onSelectWaypoint={setSelectedWaypoint}
-                date={plannedDate}
               />
             </section>
 
+            {/* Step 2: Date Selection & Save Plan */}
             <section className="mt-10">
               <SavePlanSection
                 mountainId={mountain.mountain_id}
@@ -617,6 +670,16 @@ export default function TrailDetail() {
               />
             </section>
 
+            {/* Step 3: AI Route Optimization */}
+            <section className="mt-10">
+              <RouteOptimizationSection
+                mountainId={mountain.mountain_id}
+                selectedWaypoint={selectedWaypoint}
+                date={plannedDate}
+              />
+            </section>
+
+            {/* AI Analysis Cards */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
               <AIAnalysisCard
                 title="AI Difficulty Analysis"
@@ -636,9 +699,12 @@ export default function TrailDetail() {
               />
             </section>
 
-            <TrailReportsSection mountainId={mountain.mountain_id} />
-
-
+            {/* Trail Reports Section */}
+            <TrailReportsSection
+              mountainId={mountain.mountain_id}
+              selectedWaypoint={selectedWaypoint}
+              onClearWaypoint={() => setSelectedWaypoint(null)}
+            />
           </>
         )}
 
