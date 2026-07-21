@@ -58,7 +58,8 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
     difficulty VARCHAR(20) NOT NULL,
     estimated_time FLOAT NOT NULL,
     distance_from_start_km DECIMAL(4,1),
-    CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
+    total_hikers INT DEFAULT 0, -- added total hikers PER TRAIL (PHILLIN)
+    CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS trail_reports (
@@ -110,15 +111,40 @@ CREATE TABLE IF NOT EXISTS trail_checkpoints (
     CONSTRAINT checkpoint_fk_route_waypoints FOREIGN KEY (route_waypoint_id) REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE
 );
 
+-- TRIGGER FUNCTION TO AUTO-SUM TOTAL HIKERS IN THE MOUNTAINS TABLE
+
+CREATE OR REPLACE FUNCTION sync_mountain_total_hikers()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Update the mountain's total_hikers based on the sum of all its waypoints
+    UPDATE mountains
+    SET total_hikers = COALESCE((
+        SELECT SUM(total_hikers) 
+        FROM route_waypoints 
+        WHERE mountain_id = COALESCE(NEW.mountain_id, OLD.mountain_id)
+    ), 0)
+    WHERE mountain_id = COALESCE(NEW.mountain_id, OLD.mountain_id);
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger fires after INSERT, UPDATE, or DELETE on route_waypoints
+CREATE OR REPLACE TRIGGER trg_sync_mountain_hikers
+AFTER INSERT OR UPDATE OF total_hikers OR DELETE
+ON route_waypoints
+FOR EACH ROW
+EXECUTE FUNCTION sync_mountain_total_hikers();
+
 -- ==========================================================
 -- INSERTS
 -- ==========================================================
 
 -- MOUNTAINS
 INSERT INTO mountains (mountain_name, location, description, image_url, terrain, total_hikers) VALUES
-('Mount Ulap', 'Itogon, Benguet', 'A beginner-friendly mountain known for its pine forests, scenic grasslands, and panoramic ridge views.', 'img/mt-ulap.svg', 'Pine Forest', 100),
-('Mount Yangbew', 'La Trinidad, Benguet', 'A short hiking destination famous for its sunrise views, rock formations, and colorful flower gardens.', 'img/mt-yangbew.svg', 'Grassland', 100),
-('Mount Pulag', 'Kabayan, Benguet', 'The third highest mountain in the Philippines, renowned for its sea of clouds, mossy forests, and breathtaking sunrise.', 'img/mt-pulag.svg', 'Mossy Forest', 100);
+('Mount Ulap', 'Itogon, Benguet', 'A beginner-friendly mountain known for its pine forests, scenic grasslands, and panoramic ridge views.', 'img/mt-ulap.svg', 'Pine Forest', 0),
+('Mount Yangbew', 'La Trinidad, Benguet', 'A short hiking destination famous for its sunrise views, rock formations, and colorful flower gardens.', 'img/mt-yangbew.svg', 'Grassland', 0),
+('Mount Pulag', 'Kabayan, Benguet', 'The third highest mountain in the Philippines, renowned for its sea of clouds, mossy forests, and breathtaking sunrise.', 'img/mt-pulag.svg', 'Mossy Forest', 0);
 
 -- WEATHER FORECASTS
 INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed) VALUES
@@ -136,23 +162,24 @@ INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, 
 (3, CURRENT_DATE + 3, 8.5, 83, 27);
 
 -- ROUTE WAYPOINTS (Trails)
-INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km) VALUES
+INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km, total_hikers) VALUES
 -- Mount Ulap Trails (IDs: 1, 2, 3)
-(1, 1, 'Ambacao Paway Ridge', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5),
-(1, 2, 'Ampucao Trailhead', 'One of the main access points to the Mount Ulap Eco-Trail, featuring registration facilities and the first panoramic views of the Itogon ridgelines.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5),
-(1, 3, 'Mount Ulap Eco-Trail','The official hiking route of Mount Ulap. This 9.4 km trail passes through scenic pine forests, the Ambanao Paway ridge, the iconic Gungal Rock, and ends at the 1,846-meter summit with panoramic views of the Cordillera mountain range.', 120.6312, 16.2904, 1846, 'Moderate', 4.5, 9.4),
-
+-- Mount Ulap Trails (Total Hikers: 15 + 25 + 60 = 100)
+(1, 1, 'Ambacao Paway Ridge', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5, 15),
+(1, 2, 'Ampucao Trailhead', 'One of the main access points to the Mount Ulap Eco-Trail, featuring registration facilities and the first panoramic views of the Itogon ridgelines.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5, 25),
+(1, 3, 'Mount Ulap Eco-Trail','The official hiking route of Mount Ulap. This 9.4 km trail passes through scenic pine forests, the Ambanao Paway ridge, the iconic Gungal Rock, and ends at the 1,846-meter summit with panoramic views of the Cordillera mountain range.', 120.6312, 16.2904, 1846, 'Moderate', 4.5, 9.4, 60),
 -- Mount Yangbew Trails (IDs: 4, 5, 6, 7)
-(2, 1, 'Yangbew Trailhead', 'The main jump-off point for Mount Yangbew, also known as Little Pulag because of its grassland scenery resembling Mount Pulag.', 120.607052, 16.453989, 1446, 'Easy', 0.30, 3.2),
-(2, 2, 'Grassland Ridge', 'An open grassland section offering panoramic views of La Trinidad Valley and the surrounding mountains.', 120.5906, 16.4580, 1510, 'Easy', 0.3, 1.2),
-(2, 3, 'Rock Formation Viewpoint', 'A popular photo stop featuring natural rock formations overlooking the valley below.', 120.5925, 16.4605, 1560, 'Easy', 0.7, 2.3),
-(2, 4, 'Mount Yangbew Summit', 'The summit of Mount Yangbew offers breathtaking sunrise and sunset views over La Trinidad and Baguio City.', 120.5940, 16.4622, 1609, 'Easy', 1.1, 3.3),
-
+-- Mount Yangbew Trails (Total Hikers: 10 + 20 + 30 + 40 = 100)
+(2, 1, 'Yangbew Trailhead', 'The main jump-off point for Mount Yangbew, also known as Little Pulag because of its grassland scenery resembling Mount Pulag.', 120.607052, 16.453989, 1446, 'Easy', 0.30, 3.2, 10),
+(2, 2, 'Grassland Ridge', 'An open grassland section offering panoramic views of La Trinidad Valley and the surrounding mountains.', 120.5906, 16.4580, 1510, 'Easy', 0.3, 1.2, 20),
+(2, 3, 'Rock Formation Viewpoint', 'A popular photo stop featuring natural rock formations overlooking the valley below.', 120.5925, 16.4605, 1560, 'Easy', 0.7, 2.3, 30),
+(2, 4, 'Mount Yangbew Summit', 'The summit of Mount Yangbew offers breathtaking sunrise and sunset views over La Trinidad and Baguio City.', 120.5940, 16.4622, 1609, 'Easy', 1.1, 3.3, 40),
 -- Mount Pulag Trails (IDs: 8, 9, 10, 11)
-(3, 1, 'Ambangeg Trail', 'The most popular and beginner-friendly trail to Mount Pulag, often called the "Artista Trail". The summit is typically reached in 3 to 4 hours.', 121.08612, 16.52075, 2250, 'Easy', 4.0, 7.0),
-(3, 2, 'Tawangan Trail', 'A scenic trail passing through traditional Ibaloi communities, mossy forests, and grasslands before reaching the summit.', 120.89917, 16.5975, 2200, 'Moderate', 18.0, 12.0),
-(3, 3, 'Akiki Trail', 'Known as the "Killer Trail", Akiki is recommended for experienced hikers due to its steep ascents and multi-day trek.', 120.8992, 16.5975, 2260, 'Hard', 14.0, 20.4),
-(3, 4, 'Ambaguio Trail', 'A less frequently used route approaching Mount Pulag from Nueva Vizcaya, known for its long forest sections.', 121.0564, 16.5794, 2150, 'Hard', 24.0, 16.0);
+-- Mount Pulag Trails (Total Hikers: 50 + 20 + 20 + 10 = 100)
+(3, 1, 'Ambangeg Trail', 'The most popular and beginner-friendly trail to Mount Pulag, often called the "Artista Trail". The summit is typically reached in 3 to 4 hours.', 121.08612, 16.52075, 2250, 'Easy', 4.0, 7.0, 50),
+(3, 2, 'Tawangan Trail', 'A scenic trail passing through traditional Ibaloi communities, mossy forests, and grasslands before reaching the summit.', 120.89917, 16.5975, 2200, 'Moderate', 18.0, 12.0, 20),
+(3, 3, 'Akiki Trail', 'Known as the "Killer Trail", Akiki is recommended for experienced hikers due to its steep ascents and multi-day trek.', 120.8992, 16.5975, 2260, 'Hard', 14.0, 20.4, 20),
+(3, 4, 'Ambaguio Trail', 'A less frequently used route approaching Mount Pulag from Nueva Vizcaya, known for its long forest sections.', 121.0564, 16.5794, 2150, 'Hard', 24.0, 16.0, 10);
 
 -- ==========================================================
 -- TRAIL CHECKPOINTS INSERT
