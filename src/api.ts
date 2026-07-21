@@ -70,12 +70,28 @@ export interface WeatherCheckResponse {
 export interface Waypoint {
   waypoint_id: number;
   mountain_id: number;
+  route_id?: number;
   sequence_order: number;
   name: string;
-  description: string;
+  description?: string;
   longitude: number;
   latitude: number;
-  elevation_m: number;
+  elevation_m?: number;
+  difficulty: string;
+  estimated_time: number;
+  distance_from_start_km: number;
+}
+
+export interface TrailCheckpoint {
+  checkpoint_id: number;
+  mountain_id: number;
+  route_waypoint_id: number;
+  sequence_order: number;
+  name: string;
+  description?: string;
+  longitude: number;
+  latitude: number;
+  elevation_m?: number;
   difficulty: string;
   estimated_time: number;
   distance_from_start_km: number;
@@ -209,6 +225,13 @@ export async function fetchWaypoints(mountainId: number): Promise<Waypoint[]> {
   return response.json();
 }
 
+/** Fetches specific checkpoints for a given trail/route (trail_checkpoints) */
+export async function fetchTrailCheckpoints(routeWaypointId: number): Promise<TrailCheckpoint[]> {
+  const response = await fetch(`${API_URL}/checkpoints/${routeWaypointId}`);
+  if (!response.ok) throw await extractError(response, 'Could not load checkpoint data');
+  return response.json();
+}
+
 export async function fetchDifficultyAnalysis(mountainId: number): Promise<string> {
   const res = await fetch(`${API_URL}/ai/difficulty/${mountainId}`, { method: 'POST', headers: authHeaders() });
   if (!res.ok) {
@@ -295,4 +318,30 @@ export async function declinePlanInvite(planMemberId: number): Promise<void> {
     headers: authHeaders(),
   });
   if (!response.ok) throw await extractError(response, 'Could not decline invite');
+}
+export async function fetchORSRoute(
+  waypoints: (Waypoint | TrailCheckpoint)[],
+  profile: string = 'foot-hiking'
+): Promise<[number, number][]> {
+  if (waypoints.length < 2) return [];
+
+  try {
+    const response = await fetch(`${API_URL}/ors/route`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ waypoints, profile }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Backend ORS proxy call failed');
+    }
+
+    const data = await response.json();
+    return data.route || [];
+  } catch (err) {
+    console.warn('Backend ORS proxy error. Falling back to straight lines:', err);
+    return waypoints.map((wp) => [Number(wp.latitude), Number(wp.longitude)]);
+  }
 }

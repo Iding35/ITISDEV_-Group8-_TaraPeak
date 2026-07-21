@@ -4,6 +4,8 @@ load_dotenv()
 
 from datetime import date
 from typing import Optional
+import os
+import httpx
 
 import psycopg2.extras
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -36,6 +38,7 @@ app.include_router(auth_router)
 
 # Initialize DB on startup if missing, and apply migrations for existing DBs
 init_db()
+
 
 
 def fetch_mountain(mountain_id: int) -> dict:
@@ -150,6 +153,19 @@ def get_waypoints(mountain_id: int):
     conn.close()
 
     return [dict(row) for row in rows]
+
+@app.get("/checkpoints/{route_waypoint_id}")
+def get_trail_checkpoints(route_waypoint_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute(
+        "SELECT * FROM trail_checkpoints WHERE route_waypoint_id = %s ORDER BY sequence_order ASC;",
+        (route_waypoint_id,),
+    )
+    checkpoints = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [dict(row) for row in checkpoints]
 
 @app.get("/trail-reports/{mountain_id}")
 def get_trail_reports(mountain_id: int):
@@ -533,6 +549,100 @@ def ai_route_optimization(mountain_id: int, current_user: dict = Depends(get_cur
 
     save_cached_analysis(mountain_id, "route", plan)
     return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": plan, "cached": False}
+
+@app.get("/mountains/{mountain_id}/trailheads")
+def get_mountain_trailheads(mountain_id: int):
+    fetch_mountain(mountain_id)
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    query = "SELECT * FROM trailheads WHERE mountain_id = %s"
+    cursor.execute(query, (mountain_id,))
+    trailheads = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return [dict(row) for row in trailheads]
+
+
+@app.get("/mountains/{mountain_id}/routes")
+def get_mountain_routes(mountain_id: int):
+    fetch_mountain(mountain_id)
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    query = "SELECT * FROM routes WHERE mountain_id = %s"
+    cursor.execute(query, (mountain_id,))
+    routes = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return [dict(row) for row in routes]
+
+
+@app.get("/routes/{route_id}/waypoints")
+def get_route_waypoints(route_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    query = """
+        SELECT * FROM route_waypoints 
+        WHERE route_id = %s 
+        ORDER BY sequence_order ASC;
+    """
+    cursor.execute(query, (route_id,))
+    waypoints = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return [dict(row) for row in waypoints]
+
+class WaypointCoord(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class ORSRequest(BaseModel):
+    waypoints: list[WaypointCoord]
+    profile: Optional[str] = "foot-hiking"
+
+
+@app.post("/ors/route")
+async def get_ors_route(payload: ORSRequest):
+    if not payload.waypoints or len(payload.waypoints) < 2:
+        raise HTTPException(status_code=400, detail="At least two waypoints are required.")
+
+    coordinates = [[float(wp.longitude), float(wp.latitude)] for wp in payload.waypoints]
+    radiuses = [2000 for _ in payload.waypoints]
+
+    ors_api_key = os.getenv("ORS_API_KEY", "YOUR_OPENROUTESERVICE_API_KEY")
+    ors_url = f"https://api.openrouteservice.org/v2/directions/{payload.profile}/geojson"
+
+    headers = {
+        "Authorization": ors_api_key,
+        "Content-Type": "application/json",
+    }
+    body = {"coordinates": coordinates, "radiuses": radiuses, "elevation": False}
+
+    try:
+        async with httpx.AsyncClient() as client:
+            ors_response = await client.post(ors_url, json=body, headers=headers, timeout=10.0)
+
+        if ors_response.status_code != 200:
+            print("OpenRouteService Error:", ors_response.text)
+            raise HTTPException(
+                status_code=ors_response.status_code,
+                detail="Failed to fetch trail path from ORS",
+            )
+
+        data = ors_response.json()
+        raw_coords = data.get("features", [{}])[0].get("geometry", {}).get("coordinates", [])
+
+        route_polyline = [[lat, lng] for lng, lat in raw_coords]
+        return {"route": route_polyline}
+
+    except httpx.RequestError as err:
+        print("Server error fetching ORS route:", err)
+        raise HTTPException(status_code=500, detail="Internal server error connecting to ORS")
 
 if __name__ == "__main__":
     import uvicorn
