@@ -215,55 +215,67 @@ export default function MyPlans() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-          {plans.map((plan) => (
-            <div
-              key={plan.plan_id}
-              className="relative rounded-xl border border-secondary/20 bg-surface-container-lowest overflow-hidden shadow-sm"
-            >
-              <Link to={`/trail/${plan.mountain_id}`} className="block">
-                <div
-                  className="h-40 w-full bg-cover bg-center"
-                  style={{ backgroundImage: `url('/${plan.image_url}')` }}
-                />
-                <div className="p-md flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-headline-md text-headline-md text-primary">{plan.mountain_name}</h3>
-                    {!plan.is_owner && (
-                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-label-md text-[11px] text-primary">
-                        Shared with you
-                      </span>
+          {plans.map((plan) => {
+            // Filter out the currently logged-in user so we only show other members/organizer
+            const otherMembersFirstNames = plan.members
+              .filter((m) => m.user_id !== user.user_id)
+              .map((m) => (m.name ? m.name.split(' ')[0] : ''))
+              .filter(Boolean);
+
+         
+            const displayNames = otherMembersFirstNames.slice(0, 3);
+
+            return (
+              <div
+                key={plan.plan_id}
+                className="relative rounded-xl border border-secondary/20 bg-surface-container-lowest overflow-hidden shadow-sm"
+              >
+                <Link to={`/plans/${plan.plan_id}`} className="block">
+                  <div
+                    className="h-40 w-full bg-cover bg-center"
+                    style={{ backgroundImage: `url('/${plan.image_url}')` }}
+                  />
+                  <div className="p-md flex flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-headline-md text-headline-md text-primary">{plan.mountain_name}</h3>
+                      {!plan.is_owner && (
+                        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-label-md text-[11px] text-primary">
+                          Shared with you
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-label-md text-label-md text-on-surface-variant">{plan.location}</p>
+                    <p className="font-label-md text-label-md text-secondary mt-1">{formatDate(plan.date)}</p>
+                    {displayNames.length > 0 && (
+                      <p className="font-label-md text-label-md text-on-surface-variant mt-1">
+                        With {displayNames.join(', ')}
+                        {otherMembersFirstNames.length > 3 ? '...' : ''}
+                      </p>
                     )}
                   </div>
-                  <p className="font-label-md text-label-md text-on-surface-variant">{plan.location}</p>
-                  <p className="font-label-md text-label-md text-secondary mt-1">{formatDate(plan.date)}</p>
-                  {plan.members.length > 0 && (
-                    <p className="font-label-md text-label-md text-on-surface-variant mt-1">
-                      With {plan.members.map((m) => m.name).join(', ')}
-                    </p>
-                  )}
-                </div>
-              </Link>
+                </Link>
 
-              {plan.is_owner && (
-                <div className="px-md pb-md">
-                  <InviteForm planId={plan.plan_id} onSent={loadPlans} />
-                </div>
-              )}
+                {plan.is_owner && (
+                  <div className="px-md pb-md">
+                    <InviteForm planId={plan.plan_id} onSent={loadPlans} />
+                  </div>
+                )}
 
-              {plan.is_owner && (
-                <button
-                  type="button"
-                  onClick={() => handleDelete(plan.plan_id)}
-                  aria-label={`Remove plan for ${plan.mountain_name}`}
-                  className="absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 text-on-surface-variant transition-colors hover:text-error"
-                >
-                  <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
-                    delete
-                  </span>
-                </button>
-              )}
-            </div>
-          ))}
+                {plan.is_owner && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(plan.plan_id)}
+                    aria-label={`Remove plan for ${plan.mountain_name}`}
+                    className="absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 text-on-surface-variant transition-colors hover:text-error"
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
+                      delete
+                    </span>
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </main>
     </div>

@@ -3,12 +3,13 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Mountains from './pages/Mountains';
 import MyPlans from './pages/MyPlans';
+import PlanDetail from './pages/PlanDetail';
 import Signup from './pages/Signup';
 import TrailDetail from './pages/TrailDetail';
 import Dashboard from './pages/Dashboard';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminReportsPage from './pages/AdminReportsPage'; // New Admin Page
-import AdminUsersPage from './pages/AdminUsersPage';     // New Admin Page
+import AdminReportsPage from './pages/AdminReportsPage'; 
+import AdminUsersPage from './pages/AdminUsersPage';    
 
 function AdminRoute({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/plans" element={<MyPlans />} />
+          <Route path="/plans/:id" element={<PlanDetail />} />
           <Route path="/dashboard" element={<Dashboard />} />
           {/* Admin Routes */}
           <Route

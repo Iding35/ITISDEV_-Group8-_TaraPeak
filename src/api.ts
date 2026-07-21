@@ -53,6 +53,30 @@ export interface PlanInvite {
   invited_by_name: string | null;
 }
 
+export interface DetailedPlanMember {
+  plan_member_id: number;
+  user_id: number;
+  name: string;
+  email: string;
+  role: 'organizer' | 'member';
+  status: 'pending' | 'accepted' | 'declined';
+}
+
+export interface DetailedPlan extends Plan {
+  members: DetailedPlanMember[];
+}
+
+export interface AppNotification {
+  notification_id: number;
+  user_id: number;
+  title: string;
+  message: string;
+  type: string;
+  reference_id: number;
+  is_read: boolean;
+  created_at: string;
+}
+
 export interface WeatherForecast {
   weather_id: number;
   mountain_id: number;
@@ -238,6 +262,30 @@ export async function deletePlan(planId: number): Promise<void> {
     headers: authHeaders(),
   });
   if (!response.ok) throw await extractError(response, 'Could not delete plan');
+}
+
+export async function fetchPlanDetail(planId: number): Promise<DetailedPlan> {
+  const response = await fetch(`${API_URL}/plans/${planId}`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not load plan details');
+  return response.json();
+}
+
+export async function removePlanMember(planMemberId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/plan-members/${planMemberId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not remove member');
+}
+
+export async function fetchNotifications(): Promise<AppNotification[]> {
+  const response = await fetch(`${API_URL}/notifications`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not load notifications');
+  return response.json();
 }
 
 export async function checkWeather(

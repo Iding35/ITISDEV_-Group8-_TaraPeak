@@ -481,7 +481,115 @@ def accept_plan_invite(plan_member_id: int, current_user: dict = Depends(get_cur
 def decline_plan_invite(plan_member_id: int, current_user: dict = Depends(get_current_user)):
     return _respond_to_invite(plan_member_id, current_user, "declined")
 
+@app.get("/plans/{plan_id}")
+def get_plan_detail(plan_id: int, current_user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # 1. Fetch plan & verify authorization
+    cursor.execute(
+        """
+        SELECT p.plan_id, p.date, p.user_id AS owner_id,
+               m.mountain_id, m.mountain_name, m.location, m.image_url,
+               (p.user_id = %s) AS is_owner
+        FROM plans p
+        JOIN mountains m ON p.mountain_id = m.mountain_id
+        LEFT JOIN plan_members pm ON p.plan_id = pm.plan_id AND pm.user_id = %s
+        WHERE p.plan_id = %s AND (p.user_id = %s OR pm.user_id = %s);
+        """,
+        (current_user["user_id"], current_user["user_id"], plan_id, current_user["user_id"], current_user["user_id"])
+    )
+    plan = cursor.fetchone()
+    if not plan:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Plan not found or unauthorized")
 
+    # 2. Fetch organizer's name/email explicitly + all invited members
+    cursor.execute(
+        """
+        -- Get the plan creator (Organizer) with their name and email
+        SELECT 
+            0 AS plan_member_id, 
+            u.user_id, 
+            CONCAT(u.first_name, ' ', u.last_name) AS name, 
+            u.email,
+            'organizer' AS role,
+            'accepted' AS status
+        FROM plans p
+        JOIN users u ON p.user_id = u.user_id
+        WHERE p.plan_id = %s
+
+        UNION
+
+        -- Get invited group members with their name and email
+        SELECT 
+            pm.plan_member_id, 
+            pm.user_id, 
+            CONCAT(u.first_name, ' ', u.last_name) AS name, 
+            u.email,
+            'member' AS role,
+            pm.status
+        FROM plan_members pm
+        JOIN users u ON pm.user_id = u.user_id
+        WHERE pm.plan_id = %s;
+        """,
+        (plan_id, plan_id)
+    )
+    members = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    plan_dict = dict(plan)
+    plan_dict["members"] = [dict(m) for m in members]
+    return plan_dict
+
+
+@app.delete("/plan-members/{plan_member_id}")
+def remove_plan_member(plan_member_id: int, current_user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # Ensure requester owns the plan associated with this member entry
+    cursor.execute(
+        """
+        SELECT p.user_id FROM plan_members pm
+        JOIN plans p ON pm.plan_id = p.plan_id
+        WHERE pm.plan_member_id = %s;
+        """,
+        (plan_member_id,)
+    )
+    row = cursor.fetchone()
+    if not row or row["user_id"] != current_user["user_id"]:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=403, detail="Unauthorized to remove member")
+
+    cursor.execute("DELETE FROM plan_members WHERE plan_member_id = %s", (plan_member_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return {"message": "Member removed successfully"}
+
+
+@app.get("/notifications")
+def get_notifications(current_user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute(
+        """
+        SELECT notification_id, title, message, type, reference_id, is_read, created_at 
+        FROM notifications 
+        WHERE user_id = %s 
+        ORDER BY created_at DESC LIMIT 10;
+        """,
+        (current_user["user_id"],)
+    )
+    notifs = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [dict(n) for n in notifs]
 # ---------------------------------------------------------------------------
 # AI analysis
 # ---------------------------------------------------------------------------
