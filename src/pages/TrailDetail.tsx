@@ -589,12 +589,21 @@ export default function TrailDetail() {
 
         {mountain && (
           <div className="flex flex-col gap-8">
-            <div>
-              <h1 className="text-4xl font-bold text-primary mb-2">{mountain.mountain_name}</h1>
-              <p className="text-gray-500">
-                {mountain.location} • {mountain.terrain}
-              </p>
-            </div>
+    <div>
+      <h1 className="text-4xl font-bold text-primary mb-2">{mountain.mountain_name}</h1>
+      <p className="text-gray-500">
+        {mountain.location} • {mountain.terrain}
+      </p>
+    </div>
+    <img
+      src={`/${mountain.image_url}`}
+      alt={mountain.mountain_name}
+      className="w-full h-[420px] rounded-2xl object-cover shadow-lg"
+    />
+    <section className="mb-2">
+      <h2 className="text-2xl font-semibold text-primary mb-4">Description</h2>
+      <p className="leading-8 text-gray-700">{mountain.description}</p>
+    </section>
 
             {/* Leaflet Trail Map */}
             <TrailMap
