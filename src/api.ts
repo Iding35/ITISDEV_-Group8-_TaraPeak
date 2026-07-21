@@ -110,6 +110,43 @@ export interface TrailReport {
   created_at?: string;
 }
 
+export interface TrailReportSummary {
+  mountain_id: number;
+  mountain_name: string;
+  trail_name: string; 
+  total_reports: number;
+  latest_report?: string;
+}
+
+export interface QuarterlyRegistration {
+  quarter: string;
+  total_users: number;
+}
+
+export interface PopularityDriver {
+  mountain_name: string;
+  total_plans: number;
+  difficulty: string;
+  avg_rating: number | null;
+  distance: number;
+}
+
+export interface AdminUserView {
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  created_at: string;
+}
+
+export interface MountainReportSummary {
+  mountain_id: number;
+  mountain_name: string;
+  total_reports: number;
+  latest_report?: string;
+}
+
 const API_URL = 'http://127.0.0.1:8000';
 const TOKEN_KEY = 'tarapeak_token';
 
@@ -345,3 +382,45 @@ export async function fetchORSRoute(
     return waypoints.map((wp) => [Number(wp.latitude), Number(wp.longitude)]);
   }
 }
+
+export async function fetchReportsByTrail(mountainId?: number | ''): Promise<TrailReportSummary[]> {
+  const url = mountainId 
+    ? `${API_URL}/analytics/reports-by-trail?mountain_id=${mountainId}` 
+    : `${API_URL}/analytics/reports-by-trail`;
+    
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load report analytics');
+  return res.json();
+}
+
+export async function fetchQuarterlyRegistrations(): Promise<QuarterlyRegistration[]> {
+  const res = await fetch(`${API_URL}/analytics/registrations-quarterly`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load registration trends');
+  return res.json();
+}
+
+export async function fetchHikersByDate(mountainId: number, date: string): Promise<{ total_hikers: number }> {
+  const params = new URLSearchParams({ mountain_id: String(mountainId), date });
+  const res = await fetch(`${API_URL}/analytics/hikers-by-date?${params}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load hiker counts');
+  return res.json();
+}
+
+export async function fetchPopularityDrivers(): Promise<PopularityDriver[]> {
+  const res = await fetch(`${API_URL}/analytics/popularity-drivers`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load popularity drivers');
+  return res.json();
+}
+
+export async function fetchAdminUsers(): Promise<AdminUserView[]> {
+  const res = await fetch(`${API_URL}/analytics/users`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch users');
+  return res.json();
+}
+
+export async function fetchReportsByMountain(): Promise<MountainReportSummary[]> {
+  const res = await fetch(`${API_URL}/analytics/reports-by-mountain`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch mountain report summaries');
+  return res.json();
+}
+

@@ -15,6 +15,12 @@ import datetime
 import ai
 import weather
 from auth import get_current_user, router as auth_router
+from analytics import router as analytics_router 
+
+app = FastAPI()
+
+# 2. Register the router with your app
+app.include_router(analytics_router)
 from db import (
     get_cached_analysis,
     get_connection,
@@ -35,6 +41,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(analytics_router)
 
 # Initialize DB on startup if missing, and apply migrations for existing DBs
 init_db()
@@ -85,7 +92,7 @@ def get_mountain(mountain_id: int):
 @app.get("/weather/{mountain_id}")
 def check_weather(
     mountain_id: int,
-    hiking_date: datetime.date = Query(..., alias="date"), # Explicit type hint
+    hiking_date: datetime.date = Query(..., alias="date"), 
     waypoint_id: int = Query(..., alias="waypoint_id"),
     current_user: dict = Depends(get_current_user),
 ):
@@ -542,7 +549,6 @@ def ai_route_optimization(mountain_id: int, current_user: dict = Depends(get_cur
         return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": cached, "cached": True}
 
     try:
-        # FIXED: Pass only mountain and waypoints
         plan = ai.optimize_route(mountain, waypoints)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")

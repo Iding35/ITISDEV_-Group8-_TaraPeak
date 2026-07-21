@@ -16,8 +16,14 @@ export default function Login() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await login(email, password);
-      navigate('/');
+      const user = await login(email, password);
+
+      // Route based on role
+      if (user?.role === 'admin') {
+        navigate('/admin'); // Redirects to /admin for AdminDashboard
+      } else {
+        navigate('/');       // Regular users go to home
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

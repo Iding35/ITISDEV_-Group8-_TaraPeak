@@ -114,3 +114,5 @@ cd backend
 pip install httpx
 
 create an account in openrouteservice then copy api key to env
+
+npm install recharts

@@ -279,12 +279,43 @@ INSERT INTO users (first_name, last_name, email, password, role) VALUES
 ('Maria', 'Santos', 'maria.santos@example.com', '$2b$12$EY4bVXmsJ94o5nOTlMB9Ku61aH1ryG7B78a6lQnNb1Sy6OyNpuBua', 'user'),
 ('John', 'Doe', 'john.doe@example.com', '$2b$12$XAN4i.zDasHrQ1L5GP.zV.IgBbFzcVb.AnA07picJ8srjSsXMRVnG', 'user'),
 ('Elena', 'Cruz', 'elena.cruz@example.com', '$2b$12$ohavHqkSIE7eXgC70vtPbuGZ4.c8Vv/EvHbXjK6jInWXb4x830oum', 'user'),
-('Ramon', 'Reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'user');
+('Ramon', 'Reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'user'),
+('Cheska', 'Martinez', 'admin@tarapeak.com', '$2b$12$33zauXWVwEOUUAMYDH.Y.uUQOKa5jaynXXNGeZPOaBnDaWvk2jQCi', 'admin');
 
+UPDATE users SET created_at = '2025-01-15 10:00:00' WHERE email = 'alex.rivera@example.com';
+UPDATE users SET created_at = '2025-04-20 11:30:00' WHERE email = 'maria.santos@example.com';
+UPDATE users SET created_at = '2025-07-10 14:15:00' WHERE email = 'john.doe@example.com';
+UPDATE users SET created_at = '2025-10-18 09:00:00' WHERE email = 'elena.cruz@example.com';
+UPDATE users SET created_at = '2026-01-05 16:45:00' WHERE email = 'ramon.reyes@example.com';
 -- TRAIL REPORTS
 INSERT INTO trail_reports (mountain_id, waypoint_id, user_id, rating, condition, comment, created_at) VALUES
 (1, 3, 1, 4, 'Muddy / Slippery', 'Trail had significant mud near Gungal Rock on the Eco-Trail. Trekking poles recommended.', '2026-07-13 09:30:00+00'),
 (1, 2, 2, 5, 'Clear & Well-Marked', 'Great visibility early in the morning near Ampucao Trailhead! Markings are clear.', '2026-07-13 14:15:00+00'),
 (2, 5, 3, 3, 'Overgrown Vegetation', 'Lots of tall grass along Grassland Ridge. Wear long sleeves to protect yourself.', '2026-07-13 11:00:00+00'),
 (2, 4, 4, 5, 'Clear & Dry', 'Short and easy hike at Mount Yangbew Summit. Excellent conditions throughout.', '2026-07-13 16:20:00+00'),
-(3, 8, 5, 3, 'Foggy / Low Visibility', 'Very cold and low visibility along Ambangeg Trail. Bring proper cold weather gear.', '2026-07-13 05:45:00+00');
+(3, 8, 5, 3, 'Foggy / Low Visibility', 'Very cold and low visibility along Ambangeg Trail. Bring proper cold weather gear.', '2026-07-13 05:45:00+00'),
+(1, 1, 1, 4, 'Muddy / Slippery', 'Loose soil on the initial ridge ascent.', NOW()),
+(1, 2, 2, 3, 'Rocky Terrain', 'Sign post area has rocky, uneven footing.', NOW()),
+(1, 1, 3, 2, 'Steep Sections', 'Heavy foot traffic causing soil erosion along Ambacao.', NOW()),
+(1, 3, 4, 5, 'Clear & Well-Marked', 'Clear skies at the Eco-Trail summit area.', NOW()),
+(3, 9, 4, 4, 'Foggy / Low Visibility', 'Tawangan Trail mossy forest section is very damp and foggy.', NOW()),
+(3, 10, 5, 5, 'Steep Sections', 'Akiki Trail is dry but tough as usual with steep climbs.', NOW());
+
+-- ==========================================================
+-- PLANNED TRIPS (`plans`)
+-- ==========================================================
+INSERT INTO plans (user_id, mountain_id, date) VALUES
+-- TODAY'S DATE (for live crowdedness checking)
+(1, 1, CURRENT_DATE),
+(2, 1, CURRENT_DATE),
+(3, 1, CURRENT_DATE),
+(4, 1, CURRENT_DATE),
+(5, 2, CURRENT_DATE),
+
+-- FUTURE DATES 
+(1, 1, CURRENT_DATE + 5),
+(2, 1, CURRENT_DATE + 12),
+(3, 3, CURRENT_DATE + 10),
+(4, 3, CURRENT_DATE + 10),
+(5, 3, CURRENT_DATE + 20),
+(1, 2, CURRENT_DATE + 7);
