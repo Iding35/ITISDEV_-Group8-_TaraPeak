@@ -103,3 +103,9 @@ This assumes your Postgres connection matches the defaults in `main.py` (`localh
 
 - Each person running this locally needs their own Postgres instance and their own `backend/.venv` — neither is checked into git (see `.gitignore`).
 - `localhost` only resolves to servers running on your own machine; if a groupmate runs their own backend/frontend, they use their own `localhost`, not yours.
+
+
+## For the Leaflet Map
+npm install leaflet react-leaflet --legacy-peer-deps
+npm install --save-dev @types/leaflet --legacy-peer-deps
+npm install react-leaflet@^4.2.1 leaflet@^1.9.4

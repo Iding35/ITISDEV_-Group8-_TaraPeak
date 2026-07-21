@@ -239,31 +239,7 @@ def get_weather_forecast(mountain_id: int, hiking_date: date):
     
     if row:
         return {
-            "temperature": float(row[0]),  # <-- FORCE CONVERSION TO FLOAT HERE
-            "humidity": int(row[1]),
-            "wind_speed": float(row[2])    # <-- FORCE CONVERSION TO FLOAT HERE
-        }
-    return None
-
-
-def get_weather_forecast(mountain_id: int, hiking_date: date):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        SELECT temperature, humidity, wind_speed 
-        FROM weather_forecasts 
-        WHERE mountain_id = %s AND hiking_date = %s
-        """,
-        (mountain_id, hiking_date),
-    )
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    
-    if row:
-        return {
-            "temperature": float(row[0]),  # Convert DECIMAL securely
+            "temperature": float(row[0]),
             "humidity": int(row[1]),
             "wind_speed": float(row[2])
         }

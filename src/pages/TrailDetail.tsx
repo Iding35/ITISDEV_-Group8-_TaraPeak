@@ -1,3 +1,4 @@
+// src/pages/TrailDetail.tsx
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -15,6 +16,7 @@ import {
   type TrailReport,
 } from '../api';
 import Navbar from '../components/Navbar';
+import TrailMap from '../components/TrailMap';
 import { useAuth } from '../context/AuthContext';
 
 /** Renders **bold** segments and preserves line breaks from AI text responses. */
@@ -118,23 +120,10 @@ function WaypointSelectionSection({
       .finally(() => setLoadingWaypoints(false));
   }, [mountainId]);
 
-  const difficultyWeight: Record<string, number> = {
-    easy: 1,
-    moderate: 2,
-    medium: 2,
-    hard: 3,
-    critical: 4,
-  };
-
-  const sortedWaypoints = [...waypoints].sort((a, b) => {
-    const diffA = difficultyWeight[a.difficulty?.toLowerCase() || ''] || 99;
-    const diffB = difficultyWeight[b.difficulty?.toLowerCase() || ''] || 99;
-
-    if (diffA !== diffB) {
-      return diffA - diffB;
-    }
-    return (a.sequence_order || 0) - (b.sequence_order || 0);
-  });
+  // Sorted strictly by trail sequence order (1, 2, 3...)
+  const sortedWaypoints = [...waypoints].sort(
+    (a, b) => (a.sequence_order || 0) - (b.sequence_order || 0)
+  );
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
@@ -250,29 +239,29 @@ function SavePlanSection({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
 
-useEffect(() => {
-  if (!date || !selectedWaypoint || !user) {
-    setWeather(null);
-    return;
-  }
-  let cancelled = false;
-  setCheckingWeather(true);
+  useEffect(() => {
+    if (!date || !selectedWaypoint || !user) {
+      setWeather(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingWeather(true);
 
-  checkWeather(mountainId, date, selectedWaypoint.waypoint_id)
-    .then((result) => {
-      if (!cancelled) setWeather(result);
-    })
-    .catch(() => {
-      if (!cancelled) setWeather(null);
-    })
-    .finally(() => {
-      if (!cancelled) setCheckingWeather(false);
-    });
+    checkWeather(mountainId, date, selectedWaypoint.waypoint_id)
+      .then((result) => {
+        if (!cancelled) setWeather(result);
+      })
+      .catch(() => {
+        if (!cancelled) setWeather(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingWeather(false);
+      });
 
-  return () => {
-    cancelled = true;
-  };
-}, [mountainId, date, selectedWaypoint, user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [mountainId, date, selectedWaypoint, user]);
 
   async function handleSave() {
     setSaveStatus('saving');
@@ -584,6 +573,9 @@ export default function TrailDetail() {
   const [plannedDate, setPlannedDate] = useState('');
   const [selectedWaypoint, setSelectedWaypoint] = useState<Waypoint | null>(null);
 
+  // Dedicated waypoints state for TrailMap
+  const [mapWaypoints, setMapWaypoints] = useState<Waypoint[]>([]);
+
   const aiDisabledReason = !user
     ? 'Log in to run AI analysis.'
     : !selectedWaypoint || !plannedDate
@@ -603,6 +595,15 @@ export default function TrailDetail() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Fetch waypoints strictly for TrailMap
+  useEffect(() => {
+    if (!mountain?.mountain_id) return;
+
+    fetchWaypoints(mountain.mountain_id)
+      .then(setMapWaypoints)
+      .catch(() => setMapWaypoints([]));
+  }, [mountain?.mountain_id]);
 
   return (
     <div className="bg-background text-gray-800 min-h-screen">
@@ -651,6 +652,16 @@ export default function TrailDetail() {
                   </tbody>
                 </table>
               </div>
+            </section>
+
+            {/* Interactive Trail Map */}
+            <section className="mt-10">
+              <h2 className="text-2xl font-semibold text-primary mb-4">Interactive Trail Map</h2>
+              <TrailMap 
+                waypoints={mapWaypoints} 
+                selectedWaypoint={selectedWaypoint} 
+                onSelectWaypoint={setSelectedWaypoint} 
+              />
             </section>
 
             {/* Step 1: Waypoint Selection */}
