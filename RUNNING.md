@@ -109,3 +109,8 @@ This assumes your Postgres connection matches the defaults in `main.py` (`localh
 npm install leaflet react-leaflet --legacy-peer-deps
 npm install --save-dev @types/leaflet --legacy-peer-deps
 npm install react-leaflet@^4.2.1 leaflet@^1.9.4
+
+cd backend
+pip install httpx
+
+create an account in openrouteservice then copy api key to env

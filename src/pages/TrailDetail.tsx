@@ -8,18 +8,19 @@ import {
   fetchMountain,
   fetchRouteOptimization,
   fetchSafetyAnalysis,
-  fetchWaypoints,
+  fetchWaypoints, // Fetches trails from route_waypoints
+  fetchTrailCheckpoints, // Fetches checkpoints from trail_checkpoints
   fetchTrailReports,
   type Mountain,
   type WeatherCheckResponse,
   type Waypoint,
+  type TrailCheckpoint,
   type TrailReport,
 } from '../api';
 import Navbar from '../components/Navbar';
 import TrailMap from '../components/TrailMap';
 import { useAuth } from '../context/AuthContext';
 
-/** Renders **bold** segments and preserves line breaks from AI text responses. */
 function AnalysisText({ text }: { text: string }) {
   return (
     <div className="flex flex-col gap-1 leading-7 text-gray-700">
@@ -101,123 +102,158 @@ function AIAnalysisCard({
   );
 }
 
-function WaypointSelectionSection({
+function TrailAndCheckpointSection({
   mountainId,
-  selectedWaypoint,
-  onSelectWaypoint,
+  selectedTrail,
+  onSelectTrail,
+  selectedCheckpoint,
+  onSelectCheckpoint,
+  onCheckpointsLoaded,
 }: {
   mountainId: number;
-  selectedWaypoint: Waypoint | null;
-  onSelectWaypoint: (wp: Waypoint) => void;
+  selectedTrail: Waypoint | null;
+  onSelectTrail: (trail: Waypoint) => void;
+  selectedCheckpoint: TrailCheckpoint | null;
+  onSelectCheckpoint: (cp: TrailCheckpoint | null) => void;
+  onCheckpointsLoaded: (checkpoints: TrailCheckpoint[]) => void;
 }) {
-  const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
-  const [loadingWaypoints, setLoadingWaypoints] = useState(true);
+  const [trails, setTrails] = useState<Waypoint[]>([]);
+  const [checkpoints, setCheckpoints] = useState<TrailCheckpoint[]>([]);
+  const [loadingTrails, setLoadingTrails] = useState(true);
+  const [loadingCheckpoints, setLoadingCheckpoints] = useState(false);
 
+  // 1. Fetch Trails for Mountain
   useEffect(() => {
+    setLoadingTrails(true);
     fetchWaypoints(mountainId)
-      .then(setWaypoints)
-      .catch(() => setWaypoints([]))
-      .finally(() => setLoadingWaypoints(false));
+      .then((data) => {
+        setTrails(data);
+        if (data.length > 0 && !selectedTrail) {
+          onSelectTrail(data[0]); // Default to first trail
+        }
+      })
+      .finally(() => setLoadingTrails(false));
   }, [mountainId]);
 
-  // Sorted strictly by trail sequence order (1, 2, 3...)
-  const sortedWaypoints = [...waypoints].sort(
-    (a, b) => (a.sequence_order || 0) - (b.sequence_order || 0)
-  );
+  // 2. Fetch Checkpoints when Selected Trail changes
+  useEffect(() => {
+    if (!selectedTrail) {
+      setCheckpoints([]);
+      onCheckpointsLoaded([]);
+      return;
+    }
+
+    setLoadingCheckpoints(true);
+    fetchTrailCheckpoints(selectedTrail.waypoint_id)
+      .then((cps) => {
+        setCheckpoints(cps);
+        onCheckpointsLoaded(cps);
+        onSelectCheckpoint(null); // Reset checkpoint selection on trail change
+      })
+      .finally(() => setLoadingCheckpoints(false));
+  }, [selectedTrail]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-2">
-        <span aria-hidden="true" className="material-symbols-outlined">
-          map
-        </span>
-        1. Select Trail Checkpoint
-      </h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Choose a checkpoint below to filter trail reports and start planning your route.
-      </p>
+    <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-6">
+      {/* Step 1: Select Trail */}
+      <div>
+        <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-1">
+          <span aria-hidden="true" className="material-symbols-outlined">
+            alt_route
+          </span>
+          1. Select Trail
+        </h2>
+        <p className="text-sm text-gray-500">Select a trail route to view its checkpoints.</p>
 
-      {loadingWaypoints && <p className="text-gray-500 text-sm">Loading trail checkpoints…</p>}
+        {loadingTrails ? (
+          <p className="text-sm text-gray-500 mt-3">Loading mountain trails…</p>
+        ) : (
+          <div
+      className={`grid gap-3 mt-4 ${
+        trails.length === 1
+          ? 'grid-cols-1 max-w-sm'
+          : trails.length === 2
+            ? 'grid-cols-1 sm:grid-cols-2'
+            : trails.length === 3
+              ? 'grid-cols-1 sm:grid-cols-3'
+              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+      }`}
+    >
+            {trails.map((t) => {
+              const isSelected = selectedTrail?.waypoint_id === t.waypoint_id;
+              return (
+                <button
+                  type="button"
+                  key={t.waypoint_id}
+                  onClick={() => onSelectTrail(t)}
+                  className={`p-3.5 text-left rounded-xl border transition-all ${
+                    isSelected
+                      ? 'border-primary ring-2 ring-primary/20 bg-primary/10 font-bold text-primary'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-base font-semibold">{t.name}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {t.difficulty} • {t.distance_from_start_km} km
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-      {!loadingWaypoints && sortedWaypoints.length > 0 && (
-        <ol className="flex flex-col gap-3">
-          {sortedWaypoints.map((w) => {
-            const isSelected = selectedWaypoint?.waypoint_id === w.waypoint_id;
-            const difficultyKey = w.difficulty?.toLowerCase();
-            let difficultyStyle = 'bg-slate-100 text-slate-700 border-slate-200/60';
+      <hr className="border-gray-100" />
 
-            if (difficultyKey === 'easy') {
-              difficultyStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200/80';
-            } else if (difficultyKey === 'moderate' || difficultyKey === 'medium') {
-              difficultyStyle = 'bg-yellow-50 text-yellow-800 border-yellow-200/80';
-            } else if (difficultyKey === 'hard') {
-              difficultyStyle = 'bg-orange-50 text-orange-700 border-orange-200/80';
-            } else if (difficultyKey === 'critical') {
-              difficultyStyle = 'bg-red-50 text-red-700 border-red-200/80';
-            }
+      {/* Step 2: Select Checkpoint inside chosen trail */}
+      <div>
+        <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-800 mb-1">
+          <span aria-hidden="true" className="material-symbols-outlined">
+            location_on
+          </span>
+          2. Checkpoints along {selectedTrail ? selectedTrail.name : 'Trail'}
+        </h3>
 
-            return (
-              <li
-                key={w.waypoint_id}
-                onClick={() => onSelectWaypoint(w)}
-                className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${
-                  isSelected
-                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
-                    : 'border-gray-200/80 bg-white hover:border-gray-300 hover:shadow-sm'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="checkpoint"
-                  checked={isSelected}
-                  onChange={() => onSelectWaypoint(w)}
-                  className="mt-1.5 h-4 w-4 text-primary focus:ring-primary accent-primary"
-                />
+        {loadingCheckpoints && <p className="text-sm text-gray-500 mt-2">Loading checkpoints…</p>}
 
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                  {w.sequence_order}
-                </div>
+        {!loadingCheckpoints && checkpoints.length > 0 && (
+          <ol className="flex flex-col gap-3 mt-3">
+            {checkpoints.map((cp) => {
+              const isSelected = selectedCheckpoint?.checkpoint_id === cp.checkpoint_id;
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h4 className="font-semibold text-slate-900 text-base leading-snug truncate">
-                      {w.name}
-                    </h4>
-
-                    <div className="flex items-center gap-1.5 text-xs">
-                      {w.difficulty && (
-                        <span className={`px-2 py-0.5 rounded-md font-medium border capitalize ${difficultyStyle}`}>
-                          {w.difficulty}
-                        </span>
-                      )}
-
-                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
-                        {w.distance_from_start_km} km • {w.elevation_m}m
-                      </span>
-
-                      {w.estimated_time && (
-                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium border border-slate-200/60">
-                          {w.estimated_time} hrs
-                        </span>
-                      )}
-                    </div>
+              return (
+                <li
+                  key={cp.checkpoint_id}
+                  onClick={() => onSelectCheckpoint(cp)}
+                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
+                      : 'border-gray-200/80 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                    {cp.sequence_order}
                   </div>
 
-                  {w.description && (
-                    <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
-                      {w.description}
-                    </p>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="font-semibold text-slate-900 text-base">{cp.name}</h4>
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200/60">
+                        {cp.distance_from_start_km} km • {cp.elevation_m}m
+                      </span>
+                    </div>
+                    {cp.description && <p className="text-sm text-slate-600 mt-1">{cp.description}</p>}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
 
-      {!loadingWaypoints && sortedWaypoints.length === 0 && (
-        <p className="text-gray-500 text-sm">No trail checkpoint data available for this mountain yet.</p>
-      )}
+        {!loadingCheckpoints && checkpoints.length === 0 && (
+          <p className="text-sm text-gray-500 mt-2">No checkpoints registered for this trail yet.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -226,12 +262,14 @@ function SavePlanSection({
   mountainId,
   date,
   onDateChange,
-  selectedWaypoint,
+  selectedTrail,
+  selectedCheckpoint,
 }: {
   mountainId: number;
   date: string;
   onDateChange: (date: string) => void;
-  selectedWaypoint: Waypoint | null;
+  selectedTrail: Waypoint | null;
+  selectedCheckpoint: TrailCheckpoint | null;
 }) {
   const { user } = useAuth();
   const [weather, setWeather] = useState<WeatherCheckResponse | null>(null);
@@ -240,14 +278,14 @@ function SavePlanSection({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!date || !selectedWaypoint || !user) {
+    if (!date || !selectedTrail || !user) {
       setWeather(null);
       return;
     }
     let cancelled = false;
     setCheckingWeather(true);
 
-    checkWeather(mountainId, date, selectedWaypoint.waypoint_id)
+    checkWeather(mountainId, date, selectedTrail.waypoint_id)
       .then((result) => {
         if (!cancelled) setWeather(result);
       })
@@ -261,7 +299,7 @@ function SavePlanSection({
     return () => {
       cancelled = true;
     };
-  }, [mountainId, date, selectedWaypoint, user]);
+  }, [mountainId, date, selectedTrail, user]);
 
   async function handleSave() {
     setSaveStatus('saving');
@@ -281,17 +319,20 @@ function SavePlanSection({
         <span aria-hidden="true" className="material-symbols-outlined">
           calendar_month
         </span>
-        2. Select Date &amp; Save Plan
+        3. Select Date &amp; Save Plan
       </h2>
 
-      {!selectedWaypoint ? (
+      {!selectedTrail ? (
         <p className="text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 text-sm">
-          ⚠️ Please select an available trail checkpoint above before choosing a date.
+          ⚠️ Please select a trail above before picking a date.
         </p>
       ) : (
         <>
           <div className="mb-4 text-sm font-medium text-primary bg-primary/10 p-3 rounded-lg inline-block">
-            Selected Checkpoint: <span className="font-bold">{selectedWaypoint.name}</span>
+            Selected Trail: <span className="font-bold">{selectedTrail.name}</span>
+            {selectedCheckpoint && (
+              <span> • Checkpoint: <strong>{selectedCheckpoint.name}</strong></span>
+            )}
           </div>
 
           <label className="flex flex-col gap-1 max-w-xs">
@@ -325,20 +366,9 @@ function SavePlanSection({
                 <span>💨 {weather.forecast.wind_speed} km/h wind</span>
               </div>
             )}
-            {user && !checkingWeather && weather && !weather.forecast && (
-              <p className="text-gray-500 text-sm">No weather forecast available for this date yet.</p>
-            )}
           </div>
 
           <div className="mt-4">
-            {!user && (
-              <p className="text-gray-600 text-sm">
-                <Link to="/login" className="text-primary font-semibold hover:underline">
-                  Log in
-                </Link>{' '}
-                to save this plan.
-              </p>
-            )}
             {user && saveStatus === 'saved' && (
               <p className="text-primary font-semibold text-sm">
                 Plan saved!{' '}
@@ -367,11 +397,11 @@ function SavePlanSection({
 
 function RouteOptimizationSection({
   mountainId,
-  selectedWaypoint,
+  selectedTrail,
   date,
 }: {
   mountainId: number;
-  selectedWaypoint: Waypoint | null;
+  selectedTrail: Waypoint | null;
   date: string;
 }) {
   const { user } = useAuth();
@@ -394,8 +424,8 @@ function RouteOptimizationSection({
 
   const pacingDisabledReason = !user
     ? 'Log in to generate an AI pacing plan.'
-    : !selectedWaypoint || !date
-      ? 'Please select a checkpoint and hiking date to generate an AI pacing plan.'
+    : !selectedTrail || !date
+      ? 'Please select a trail and hiking date to generate an AI pacing plan.'
       : undefined;
 
   return (
@@ -427,18 +457,13 @@ function RouteOptimizationSection({
       </div>
 
       {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
-
       {loadingPlan && (
         <div className="flex items-center gap-3 text-gray-500 mt-3">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           Working out the best pacing plan…
         </div>
       )}
-
-      {pacingDisabledReason && !plan && (
-        <p className="text-gray-500 text-sm mt-2">{pacingDisabledReason}</p>
-      )}
-
+      {pacingDisabledReason && !plan && <p className="text-gray-500 text-sm mt-2">{pacingDisabledReason}</p>}
       {plan && (
         <div className="mt-4 border-t pt-4">
           <AnalysisText text={plan} />
@@ -450,12 +475,10 @@ function RouteOptimizationSection({
 
 function TrailReportsSection({
   mountainId,
-  selectedWaypoint,
-  onClearWaypoint,
+  selectedTrail,
 }: {
   mountainId: number;
-  selectedWaypoint: Waypoint | null;
-  onClearWaypoint?: () => void;
+  selectedTrail: Waypoint | null;
 }) {
   const [reports, setReports] = useState<TrailReport[]>([]);
   const [loading, setLoading] = useState(false);
@@ -473,8 +496,8 @@ function TrailReportsSection({
       .finally(() => setLoading(false));
   }, [mountainId]);
 
-  const filteredReports = selectedWaypoint
-    ? reports.filter((r) => r.waypoint_id === selectedWaypoint.waypoint_id)
+  const filteredReports = selectedTrail
+    ? reports.filter((r) => r.waypoint_id === selectedTrail.waypoint_id)
     : reports;
 
   return (
@@ -482,46 +505,21 @@ function TrailReportsSection({
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-primary">Trail Reports</h2>
-          {selectedWaypoint ? (
+          {selectedTrail ? (
             <p className="text-sm text-gray-500 mt-1">
-              Showing reports for: <span className="font-semibold text-primary">{selectedWaypoint.name}</span>
+              Showing reports for: <span className="font-semibold text-primary">{selectedTrail.name}</span>
             </p>
           ) : (
-            <p className="text-sm text-gray-500 mt-1">Showing all reports for this trail.</p>
+            <p className="text-sm text-gray-500 mt-1">Showing all reports for this mountain.</p>
           )}
         </div>
-
-        {selectedWaypoint && onClearWaypoint && (
-          <button
-            type="button"
-            onClick={onClearWaypoint}
-            className="text-sm text-primary underline hover:text-primary/80 font-medium"
-          >
-            Show All Reports
-          </button>
-        )}
       </div>
 
       {loading && <p className="text-gray-500 text-sm">Loading reports...</p>}
 
       {!loading && filteredReports.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm p-6 text-center text-gray-500">
-          {selectedWaypoint ? (
-            <div>
-              <p>No trail reports recorded for {selectedWaypoint.name} yet.</p>
-              {onClearWaypoint && (
-                <button
-                  type="button"
-                  onClick={onClearWaypoint}
-                  className="mt-2 text-sm text-primary font-semibold underline"
-                >
-                  View all mountain reports ({reports.length})
-                </button>
-              )}
-            </div>
-          ) : (
-            'No trail reports recorded yet.'
-          )}
+          No trail reports recorded for {selectedTrail ? selectedTrail.name : 'this mountain'} yet.
         </div>
       )}
 
@@ -534,13 +532,9 @@ function TrailReportsSection({
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold text-gray-900">
-                    {report.user_name || 'Anonymous Hiker'}
-                  </span>
+                  <span className="font-semibold text-gray-900">{report.user_name || 'Anonymous Hiker'}</span>
                   <span className="text-xs text-gray-400">
-                    {report.created_at
-                      ? new Date(report.created_at).toLocaleDateString()
-                      : 'Recently'}
+                    {report.created_at ? new Date(report.created_at).toLocaleDateString() : 'Recently'}
                   </span>
                 </div>
 
@@ -553,9 +547,7 @@ function TrailReportsSection({
                   </span>
                 </div>
 
-                <p className="text-gray-700 text-sm leading-relaxed">
-                  {report.comment}
-                </p>
+                <p className="text-gray-700 text-sm leading-relaxed">{report.comment}</p>
               </div>
             </div>
           ))}
@@ -567,166 +559,99 @@ function TrailReportsSection({
 
 export default function TrailDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+
   const [mountain, setMountain] = useState<Mountain | null>(null);
+  const [selectedTrail, setSelectedTrail] = useState<Waypoint | null>(null);
+  const [checkpoints, setCheckpoints] = useState<TrailCheckpoint[]>([]);
+  const [selectedCheckpoint, setSelectedCheckpoint] = useState<TrailCheckpoint | null>(null);
+  const [date, setDate] = useState('');
   const [loading, setLoading] = useState(true);
-  const [plannedDate, setPlannedDate] = useState('');
-  const [selectedWaypoint, setSelectedWaypoint] = useState<Waypoint | null>(null);
-
-  // Dedicated waypoints state for TrailMap
-  const [mapWaypoints, setMapWaypoints] = useState<Waypoint[]>([]);
-
-  const aiDisabledReason = !user
-    ? 'Log in to run AI analysis.'
-    : !selectedWaypoint || !plannedDate
-      ? 'Select a checkpoint and hiking date first to run AI analysis.'
-      : undefined;
 
   useEffect(() => {
     if (!id) return;
-
     setLoading(true);
-
     fetchMountain(id)
       .then(setMountain)
-      .catch((error) => {
-        console.error('Error loading mountain:', error);
-        alert('Unable to load mountain details.');
-      })
+      .catch((err) => console.error('Failed to load mountain details:', err))
       .finally(() => setLoading(false));
   }, [id]);
-
-  // Fetch waypoints strictly for TrailMap
-  useEffect(() => {
-    if (!mountain?.mountain_id) return;
-
-    fetchWaypoints(mountain.mountain_id)
-      .then(setMapWaypoints)
-      .catch(() => setMapWaypoints([]));
-  }, [mountain?.mountain_id]);
 
   return (
     <div className="bg-background text-gray-800 min-h-screen">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-8 py-10">
-        <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline mb-8">
-          <span className="material-symbols-outlined">arrow_back</span>
-          Back to Map
+        <Link to="/" className="inline-flex items-center gap-2 text-primary hover:underline mb-6">
+          <span className="material-symbols-outlined">arrow_back</span> Back to Map
         </Link>
 
+        {loading && <p className="text-gray-500">Loading mountain details...</p>}
+
         {mountain && (
-          <>
-            <img
-              src={`/${mountain.image_url}`}
-              alt={mountain.mountain_name}
-              className="w-full h-[420px] rounded-2xl object-cover shadow-lg"
+          <div className="flex flex-col gap-8">
+            <div>
+              <h1 className="text-4xl font-bold text-primary mb-2">{mountain.mountain_name}</h1>
+              <p className="text-gray-500">
+                {mountain.location} • {mountain.terrain}
+              </p>
+            </div>
+
+            {/* Leaflet Trail Map */}
+            <TrailMap
+              checkpoints={checkpoints}
+              selectedCheckpoint={selectedCheckpoint}
+              onSelectCheckpoint={setSelectedCheckpoint}
             />
 
-            <section className="mt-10">
-              <h1 className="text-5xl font-bold text-primary">{mountain.mountain_name}</h1>
-              <p className="text-xl text-gray-500 mt-3">{mountain.location}</p>
-            </section>
+            {/* Step 1 & 2: Select Trail then Checkpoint */}
+            <TrailAndCheckpointSection
+              mountainId={mountain.mountain_id}
+              selectedTrail={selectedTrail}
+              onSelectTrail={setSelectedTrail}
+              selectedCheckpoint={selectedCheckpoint}
+              onSelectCheckpoint={setSelectedCheckpoint}
+              onCheckpointsLoaded={setCheckpoints}
+            />
 
-            <section className="mt-10">
-              <h2 className="text-2xl font-semibold text-primary mb-4">Description</h2>
-              <p className="leading-8 text-gray-700">{mountain.description}</p>
-            </section>
+            {/* Step 3: Date Selection & Save Plan */}
+            <SavePlanSection
+              mountainId={mountain.mountain_id}
+              date={date}
+              onDateChange={setDate}
+              selectedTrail={selectedTrail}
+              selectedCheckpoint={selectedCheckpoint}
+            />
 
-            <section className="mt-8">
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <table className="w-full">
-                  <tbody>
-                    <tr className="border-b">
-                      <td className="font-semibold p-4">Location</td>
-                      <td className="p-4">{mountain.location}</td>
-                    </tr>
-                    <tr className="border-b">
-                      <td className="font-semibold p-4">Terrain</td>
-                      <td className="p-4">{mountain.terrain}</td>
-                    </tr>
-                    <tr>
-                      <td className="font-semibold p-4">Total Hikers</td>
-                      <td className="p-4">{mountain.total_hikers}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            {/* AI Optimization Card */}
+            <RouteOptimizationSection
+              mountainId={mountain.mountain_id}
+              selectedTrail={selectedTrail}
+              date={date}
+            />
 
-            {/* Interactive Trail Map */}
-            <section className="mt-10">
-              <h2 className="text-2xl font-semibold text-primary mb-4">Interactive Trail Map</h2>
-              <TrailMap 
-                waypoints={mapWaypoints} 
-                selectedWaypoint={selectedWaypoint} 
-                onSelectWaypoint={setSelectedWaypoint} 
-              />
-            </section>
-
-            {/* Step 1: Waypoint Selection */}
-            <section className="mt-10">
-              <WaypointSelectionSection
-                mountainId={mountain.mountain_id}
-                selectedWaypoint={selectedWaypoint}
-                onSelectWaypoint={setSelectedWaypoint}
-              />
-            </section>
-
-            {/* Step 2: Date Selection & Save Plan */}
-            <section className="mt-10">
-              <SavePlanSection
-                mountainId={mountain.mountain_id}
-                date={plannedDate}
-                onDateChange={setPlannedDate}
-                selectedWaypoint={selectedWaypoint}
-              />
-            </section>
-
-            {/* Step 3: AI Route Optimization */}
-            <section className="mt-10">
-              <RouteOptimizationSection
-                mountainId={mountain.mountain_id}
-                selectedWaypoint={selectedWaypoint}
-                date={plannedDate}
-              />
-            </section>
-
-            {/* AI Analysis Cards */}
-            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
+            {/* AI Difficulty & Safety Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <AIAnalysisCard
-                title="AI Difficulty Analysis"
-                icon="trending_up"
+                title="AI Trail Difficulty Analysis"
+                icon="fitness_center"
                 buttonLabel="Analyze Difficulty"
-                disabled={!!aiDisabledReason}
-                disabledHint={aiDisabledReason}
+                disabled={!selectedTrail || !date}
+                disabledHint="Please select a trail and hiking date above to analyze difficulty."
                 fetcher={() => fetchDifficultyAnalysis(mountain.mountain_id)}
               />
+
               <AIAnalysisCard
-                title="AI Safety Analysis"
-                icon="health_and_safety"
-                buttonLabel={plannedDate ? `Analyze Safety for ${plannedDate}` : 'Analyze Safety'}
-                disabled={!!aiDisabledReason}
-                disabledHint={aiDisabledReason}
-                fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, plannedDate)}
+                title="AI Safety Advisory"
+                icon="shield"
+                buttonLabel="Check Safety"
+                disabled={!selectedTrail || !date}
+                disabledHint="Please select a trail and hiking date above to generate safety advisory."
+                fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, date)}
               />
-            </section>
+            </div>
 
             {/* Trail Reports Section */}
-            <TrailReportsSection
-              mountainId={mountain.mountain_id}
-              selectedWaypoint={selectedWaypoint}
-              onClearWaypoint={() => setSelectedWaypoint(null)}
-            />
-          </>
-        )}
-
-        {loading && (
-          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-lg p-8 flex flex-col items-center gap-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-800 border-t-transparent" />
-              <p className="text-gray-600">Loading trail information...</p>
-            </div>
+            <TrailReportsSection mountainId={mountain.mountain_id} selectedTrail={selectedTrail} />
           </div>
         )}
       </main>

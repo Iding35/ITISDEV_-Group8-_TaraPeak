@@ -14,14 +14,9 @@ CREATE TABLE IF NOT EXISTS mountains (
     location VARCHAR(200),
     description TEXT,
     image_url VARCHAR(200),
-    --estimated_time FLOAT,
-    --difficulty VARCHAR(20),
-    --distance FLOAT,
     terrain VARCHAR(100),
-    --hazards VARCHAR(200),
     total_hikers INT DEFAULT 0
 );
-
 
 CREATE TABLE IF NOT EXISTS weather_forecasts (
     weather_id SERIAL PRIMARY KEY,
@@ -33,8 +28,6 @@ CREATE TABLE IF NOT EXISTS weather_forecasts (
     CONSTRAINT weather_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id),
     CONSTRAINT weather_unique UNIQUE (mountain_id, hiking_date)
 );
-
-
 
 CREATE TABLE IF NOT EXISTS plans (
     plan_id SERIAL PRIMARY KEY,
@@ -59,11 +52,11 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
     sequence_order INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     description TEXT,
-    longitude FLOAT NOT NULL, --add
-    latitude FLOAT NOT NULL, --add
+    longitude FLOAT NOT NULL,
+    latitude FLOAT NOT NULL,
     elevation_m INT,
-    difficulty VARCHAR(20) NOT NULL, --add
-    estimated_time FLOAT NOT NULL, --add
+    difficulty VARCHAR(20) NOT NULL,
+    estimated_time FLOAT NOT NULL,
     distance_from_start_km DECIMAL(4,1),
     CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
 );
@@ -71,7 +64,7 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
 CREATE TABLE IF NOT EXISTS trail_reports (
     report_id SERIAL PRIMARY KEY,
     mountain_id INT REFERENCES mountains(mountain_id) ON DELETE CASCADE,
-    waypoint_id INT REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE, -- Tied to specific trail/waypoint
+    waypoint_id INT REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE,
     user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
     rating INT CHECK (rating >= 1 AND rating <= 5),
     condition VARCHAR(100) NOT NULL,
@@ -100,14 +93,34 @@ CREATE TABLE IF NOT EXISTS ai_analysis_cache (
     CONSTRAINT ai_cache_unique UNIQUE (mountain_id, analysis_type, cache_key)
 );
 
+CREATE TABLE IF NOT EXISTS trail_checkpoints (
+    checkpoint_id SERIAL PRIMARY KEY,
+    mountain_id INT NOT NULL,
+    route_waypoint_id INT NOT NULL,
+    sequence_order INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    longitude FLOAT NOT NULL,
+    latitude FLOAT NOT NULL,
+    elevation_m INT,
+    difficulty VARCHAR(20) NOT NULL,
+    estimated_time FLOAT NOT NULL,
+    distance_from_start_km DECIMAL(4,1),
+    CONSTRAINT checkpoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE,
+    CONSTRAINT checkpoint_fk_route_waypoints FOREIGN KEY (route_waypoint_id) REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE
+);
 
--- BAGUIO MOUNTAINS TABLE --
+-- ==========================================================
+-- INSERTS
+-- ==========================================================
+
+-- MOUNTAINS
 INSERT INTO mountains (mountain_name, location, description, image_url, terrain, total_hikers) VALUES
 ('Mount Ulap', 'Itogon, Benguet', 'A beginner-friendly mountain known for its pine forests, scenic grasslands, and panoramic ridge views.', 'img/mt-ulap.svg', 'Pine Forest', 100),
 ('Mount Yangbew', 'La Trinidad, Benguet', 'A short hiking destination famous for its sunrise views, rock formations, and colorful flower gardens.', 'img/mt-yangbew.svg', 'Grassland', 100),
 ('Mount Pulag', 'Kabayan, Benguet', 'The third highest mountain in the Philippines, renowned for its sea of clouds, mossy forests, and breathtaking sunrise.', 'img/mt-pulag.svg', 'Mossy Forest', 100);
 
--- WEATHER FORECASTS --
+-- WEATHER FORECASTS
 INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed) VALUES
 (1, CURRENT_DATE, 18.5, 70, 12),
 (1, CURRENT_DATE + 1, 19.0, 65, 10),
@@ -122,32 +135,118 @@ INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, 
 (3, CURRENT_DATE + 2, 9.0, 80, 22),
 (3, CURRENT_DATE + 3, 8.5, 83, 27);
 
--- ROUTE WAYPOINTS --
+-- ROUTE WAYPOINTS (Trails)
 INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km) VALUES
--- ==========================
--- MOUNT ULAP
--- ==========================
+-- Mount Ulap Trails (IDs: 1, 2, 3)
 (1, 1, 'Ambacao Paway Ridge', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5),
 (1, 2, 'Ampucao Trailhead', 'One of the main access points to the Mount Ulap Eco-Trail, featuring registration facilities and the first panoramic views of the Itogon ridgelines.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5),
-(1, 3,'Mount Ulap Eco-Trail','The official hiking route of Mount Ulap. This 9.4 km trail passes through scenic pine forests, the Ambanao Paway ridge, the iconic Gungal Rock, and ends at the 1,846-meter summit with panoramic views of the Cordillera mountain range.', 120.6312, 16.2904, 1846, 'Moderate', 4.5, 9.4),
+(1, 3, 'Mount Ulap Eco-Trail','The official hiking route of Mount Ulap. This 9.4 km trail passes through scenic pine forests, the Ambanao Paway ridge, the iconic Gungal Rock, and ends at the 1,846-meter summit with panoramic views of the Cordillera mountain range.', 120.6312, 16.2904, 1846, 'Moderate', 4.5, 9.4),
 
--- ==========================
--- MOUNT YANGBEW
--- ==========================
+-- Mount Yangbew Trails (IDs: 4, 5, 6, 7)
 (2, 1, 'Yangbew Trailhead', 'The main jump-off point for Mount Yangbew, also known as Little Pulag because of its grassland scenery resembling Mount Pulag.', 120.607052, 16.453989, 1446, 'Easy', 0.30, 3.2),
 (2, 2, 'Grassland Ridge', 'An open grassland section offering panoramic views of La Trinidad Valley and the surrounding mountains.', 120.5906, 16.4580, 1510, 'Easy', 0.3, 1.2),
 (2, 3, 'Rock Formation Viewpoint', 'A popular photo stop featuring natural rock formations overlooking the valley below.', 120.5925, 16.4605, 1560, 'Easy', 0.7, 2.3),
 (2, 4, 'Mount Yangbew Summit', 'The summit of Mount Yangbew offers breathtaking sunrise and sunset views over La Trinidad and Baguio City.', 120.5940, 16.4622, 1609, 'Easy', 1.1, 3.3),
 
--- ==========================
--- MOUNT PULAG
--- ==========================
+-- Mount Pulag Trails (IDs: 8, 9, 10, 11)
 (3, 1, 'Ambangeg Trail', 'The most popular and beginner-friendly trail to Mount Pulag, often called the "Artista Trail". The summit is typically reached in 3 to 4 hours.', 121.08612, 16.52075, 2250, 'Easy', 4.0, 7.0),
 (3, 2, 'Tawangan Trail', 'A scenic trail passing through traditional Ibaloi communities, mossy forests, and grasslands before reaching the summit.', 120.89917, 16.5975, 2200, 'Moderate', 18.0, 12.0),
 (3, 3, 'Akiki Trail', 'Known as the "Killer Trail", Akiki is recommended for experienced hikers due to its steep ascents and multi-day trek.', 120.8992, 16.5975, 2260, 'Hard', 14.0, 20.4),
 (3, 4, 'Ambaguio Trail', 'A less frequently used route approaching Mount Pulag from Nueva Vizcaya, known for its long forest sections.', 121.0564, 16.5794, 2150, 'Hard', 24.0, 16.0);
 
--- Passwords below are bcrypt hashes of: pass1234, pass5678, passabcd, passwxyz, pass8765 (in order)
+-- ==========================================================
+-- TRAIL CHECKPOINTS INSERT
+-- ==========================================================
+INSERT INTO trail_checkpoints 
+(mountain_id, route_waypoint_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km) 
+VALUES
+
+-- ==========================================================
+-- MOUNT ULAP (mountain_id = 1)
+-- ==========================================================
+
+-- Trail 1: Ambacao Paway Ridge Traverse (route_waypoint_id = 1)
+(1, 1, 1, 'Ampucao Entry Gate', 'Starting point near Philex Road heading up to Ambacao Paway.', 120.6358, 16.2947, 1520, 'Easy', 0.0, 0.0),
+(1, 1, 2, 'Pine Grove Rest Area', 'Shaded pine area along the initial incline.', 120.6380, 16.2970, 1580, 'Easy', 0.2, 0.8),
+(1, 1, 3, 'Ambacao Ridge Viewpoint', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6410, 16.3010, 1680, 'Easy', 0.8, 2.1),
+(1, 1, 4, 'Grassland Slope', 'Gentle slope running parallel to the main ridge line.', 120.6435, 16.3035, 1720, 'Easy', 1.2, 3.0),
+(1, 1, 5, 'Paway High Point', 'Summit ridge point of the Ambacao section.', 120.6471, 16.3060, 1788, 'Easy', 1.8, 4.2),
+
+-- Trail 2: Ampucao Out-and-Back Trail (route_waypoint_id = 2)
+(1, 2, 1, 'Ampucao Barangay Hall', 'Main registration and guide assembly hall.', 120.6550, 16.3253, 1497, 'Easy', 0.0, 0.0),
+(1, 2, 2, 'Totomtombek Rest Stop', 'First covered rest shelter surrounded by Benguet pines.', 120.6482, 16.3218, 1552, 'Easy', 0.3, 1.0),
+(1, 2, 3, 'Corral Rock Formation', 'Distinct rock outcrop along the ridge trail.', 120.6475, 16.3130, 1603, 'Easy', 0.8, 2.0),
+(1, 2, 4, 'Ambanao Paway Peak', 'Grassland peak with wide open views of Benguet.', 120.6471, 16.3060, 1788, 'Easy', 1.5, 3.6),
+(1, 2, 5, 'Ampucao Turnaround Point', 'Popular midpoint turnaround spot for shorter day hikes.', 120.6410, 16.3010, 1750, 'Easy', 2.0, 4.5),
+
+-- Trail 3: Mount Ulap Eco-Trail (route_waypoint_id = 3)
+(1, 3, 1, 'Ampucao Trailhead', 'Starting jump-off point at Barangay Ampucao registration hall.', 120.6550, 16.3253, 1497, 'Easy', 0.0, 0.0),
+(1, 3, 2, 'Totomtombek Rest Stop', 'First resting shelter surrounded by Benguet pine trees.', 120.6482, 16.3218, 1559, 'Easy', 0.3, 1.2),
+(1, 3, 3, 'Ambanao Paway Ridge', 'First major peak with rolling grasslands and scenic vistas.', 120.6471, 16.3060, 1788, 'Easy', 1.5, 3.6),
+(1, 3, 4, 'Gungal Rock', 'The iconic cliff-side rock formation and popular photo stop.', 120.6368, 16.2950, 1814, 'Moderate', 3.0, 5.4),
+(1, 3, 5, 'Mount Ulap Summit', 'Highest point along the trail offering 360-degree Cordillera views.', 120.6310, 16.2900, 1846, 'Moderate', 4.0, 6.5),
+(1, 3, 6, 'Sta. Fe Exit', 'End of the traverse trail leading down to hanging bridges.', 120.6215, 16.2810, 1277, 'Moderate', 6.0, 9.4),
+
+
+-- ==========================================================
+-- MOUNT YANGBEW (mountain_id = 2)
+-- ==========================================================
+
+-- Trail 1: Yangbew Main Trailhead Route (route_waypoint_id = 4)
+(2, 4, 1, 'Yangbew Trailhead Gate', 'The main jump-off point for Mount Yangbew near the barangay hall.', 120.6070, 16.4540, 1446, 'Easy', 0.0, 0.0),
+(2, 4, 2, 'Pine Grove Path', 'Early pine tree shade before the open grassland.', 120.6050, 16.4555, 1490, 'Easy', 0.2, 0.6),
+(2, 4, 3, 'Middle Slope Rest Stop', 'Small open clearing with view of La Trinidad valley.', 120.6010, 16.4570, 1530, 'Easy', 0.5, 1.2),
+(2, 4, 4, 'Yangbew Plateau Entry', 'Entry point onto the grassy upper summit plateau.', 120.5960, 16.4600, 1585, 'Easy', 0.8, 2.2),
+(2, 4, 5, 'Main Summit Marker', 'Main summit sign and horse riding area on the grassland.', 120.5940, 16.4622, 1609, 'Easy', 1.0, 3.2),
+
+-- Trail 2: Grassland Ridge Trail (route_waypoint_id = 5)
+(2, 5, 1, 'Grassland Ridge Start', 'Starting point along the eastern open ridge slope.', 120.5906, 16.4580, 1510, 'Easy', 0.0, 0.0),
+(2, 5, 2, 'Lower Meadow Walk', 'Gentle trail section walking across green pasture land.', 120.5915, 16.4590, 1535, 'Easy', 0.2, 0.5),
+(2, 5, 3, 'East Viewpoint Hill', 'Scenic hill overlook facing eastern mountain ranges.', 120.5928, 16.4600, 1570, 'Easy', 0.4, 0.9),
+(2, 5, 4, 'Upper Ridge Junction', 'Junction joining the main summit trail on the ridge.', 120.5940, 16.4618, 1600, 'Easy', 0.6, 1.2),
+
+-- Trail 3: Rock Formation Viewpoint Trail (route_waypoint_id = 6)
+(2, 6, 1, 'Rock Formation Trailhead', 'Starting point near the northern rocky approaches.', 120.5925, 16.4605, 1560, 'Easy', 0.0, 0.0),
+(2, 6, 2, 'Bouldering Outcrop', 'Scattered limestone rock formations ideal for quick photo stops.', 120.5932, 16.4612, 1585, 'Easy', 0.2, 0.8),
+(2, 6, 3, 'Valley Viewpoint Rock', 'The highest rock cluster offering clear views of La Trinidad Valley.', 120.5938, 16.4618, 1602, 'Easy', 0.4, 1.5),
+(2, 6, 4, 'Summit Plateau Connector', 'Short grassy path connecting the rock formations to the main summit.', 120.5940, 16.4622, 1609, 'Easy', 0.6, 2.3),
+
+-- Trail 4: Yangbew Summit Mix Route (route_waypoint_id = 7)
+(2, 7, 1, 'Tawang Base Jump-off', 'Main registration and parking area at the base of Mount Yangbew.', 120.6070, 16.4540, 1446, 'Easy', 0.0, 0.0),
+(2, 7, 2, 'Pine Forest Pass', 'Shaded woodland trail connecting the lower valley to the upper ridge.', 120.6035, 16.4565, 1515, 'Easy', 0.3, 0.9),
+(2, 7, 3, 'Rock Formation Overlook', 'Natural limestone outcrop offering scenic photo spots over La Trinidad.', 120.5980, 16.4600, 1565, 'Easy', 0.6, 1.8),
+(2, 7, 4, 'Mount Yangbew Summit Plateau', 'The main summit area with 360-degree views of Baguio and La Trinidad Valley.', 120.5940, 16.4622, 1609, 'Easy', 0.9, 2.6),
+(2, 7, 5, 'Grassland Ridge Descent', 'Open grassland pasture trail descending back towards the Tawang exit.', 120.5910, 16.4585, 1520, 'Easy', 1.1, 3.3),
+
+
+-- ==========================================================
+-- MOUNT PULAG (mountain_id = 3)
+-- ==========================================================
+
+-- Trail 1: Ambangeg Trail (route_waypoint_id = 8)
+(3, 8, 1, 'Babadak Ranger Station', 'Main jump-off center for registration, guides, and briefing.', 120.8804, 16.5722, 2400, 'Easy', 0.0, 0.0),
+(3, 8, 2, 'Camp 1 Shelter', 'First major resting point along the shaded pine forest section.', 120.8905, 16.5815, 2577, 'Easy', 1.0, 2.5),
+(3, 8, 3, 'Camp 2 (Mossy Forest Exit)', 'Campsite marking the boundary between mossy forest and dwarf bamboo grassland.', 120.8982, 16.5910, 2690, 'Moderate', 3.0, 5.2),
+(3, 8, 4, 'Saddle Campsite', 'High-altitude campsite right below the summit peak.', 120.8990, 16.5960, 2800, 'Moderate', 4.0, 7.0),
+(3, 8, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m) famous for the sea of clouds.', 120.8992, 16.5975, 2928, 'Moderate', 4.5, 8.0),
+
+-- Trail 2: Tawangan Trail (route_waypoint_id = 9)
+(3, 9, 1, 'Tawangan Barangay Hall', 'Jump-off point in Barangay Tawangan, Kabayan.', 120.8750, 16.6320, 1480, 'Hard', 0.0, 0.0),
+(3, 9, 2, 'Tawangan Mossy Forest Camp', 'Deep mossy forest campsite with high humidity and lush vegetation.', 120.8870, 16.6180, 2100, 'Hard', 5.0, 7.5),
+(3, 9, 3, 'Mount Pulag Summit', 'Summit junction approaching from the northern mossy forest trail.', 120.8992, 16.5975, 2928, 'Hard', 10.0, 13.0),
+
+-- Trail 3: Akiki Trail (route_waypoint_id = 10)
+(3, 10, 1, 'Akiki Jump-Off Point', 'Starting point at Barangay Doacan, Kabayan.', 120.8421, 16.5812, 1250, 'Hard', 0.0, 0.0),
+(3, 10, 2, 'Eddet River Camp', 'Riverside campsite after a steep downhill descent from jump-off.', 120.8605, 16.5790, 1650, 'Hard', 3.0, 4.5),
+(3, 10, 3, 'Marlboro Country Camp', 'Mid-trail campsite located in a lush pine forest area.', 120.8780, 16.5855, 2130, 'Hard', 7.0, 9.2),
+(3, 10, 4, 'Akiki Mossy Forest Exit', 'Dense forest section leading to the open grasslands.', 120.8920, 16.5925, 2600, 'Hard', 10.0, 12.5),
+(3, 10, 5, 'Mount Pulag Summit', 'Reaches the main peak from the western ridgeline.', 120.8992, 16.5975, 2928, 'Hard', 12.0, 14.5),
+
+-- Trail 4: Ambaguio Trail (route_waypoint_id = 11)
+(3, 11, 1, 'Ambaguio Jump-off', 'Starting point in Ambaguio, Nueva Vizcaya.', 121.0150, 16.5210, 1100, 'Hard', 0.0, 0.0),
+(3, 11, 2, 'Upper Napo Shelter', 'First day rest stop along the forest ridgeline.', 120.9750, 16.5450, 1850, 'Hard', 8.0, 12.0),
+(3, 11, 3, 'Mount Pulag Summit', 'Approaches the peak from the eastern slope.', 120.8992, 16.5975, 2928, 'Hard', 16.0, 24.0);
+-- USERS
 INSERT INTO users (first_name, last_name, email, password, role) VALUES
 ('Alex', 'Rivera', 'alex.rivera@example.com', '$2b$12$U142o1R5v9EYyPQ5eBMtLuflnt/G832bpDLJGN7sjdbMf/At8ZSCu', 'user'),
 ('Maria', 'Santos', 'maria.santos@example.com', '$2b$12$EY4bVXmsJ94o5nOTlMB9Ku61aH1ryG7B78a6lQnNb1Sy6OyNpuBua', 'user'),
@@ -155,14 +254,10 @@ INSERT INTO users (first_name, last_name, email, password, role) VALUES
 ('Elena', 'Cruz', 'elena.cruz@example.com', '$2b$12$ohavHqkSIE7eXgC70vtPbuGZ4.c8Vv/EvHbXjK6jInWXb4x830oum', 'user'),
 ('Ramon', 'Reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'user');
 
+-- TRAIL REPORTS
 INSERT INTO trail_reports (mountain_id, waypoint_id, user_id, rating, condition, comment, created_at) VALUES
--- Mount Ulap Reports
 (1, 3, 1, 4, 'Muddy / Slippery', 'Trail had significant mud near Gungal Rock on the Eco-Trail. Trekking poles recommended.', '2026-07-13 09:30:00+00'),
 (1, 2, 2, 5, 'Clear & Well-Marked', 'Great visibility early in the morning near Ampucao Trailhead! Markings are clear.', '2026-07-13 14:15:00+00'),
-
--- Mount Yangbew Reports
 (2, 5, 3, 3, 'Overgrown Vegetation', 'Lots of tall grass along Grassland Ridge. Wear long sleeves to protect yourself.', '2026-07-13 11:00:00+00'),
 (2, 4, 4, 5, 'Clear & Dry', 'Short and easy hike at Mount Yangbew Summit. Excellent conditions throughout.', '2026-07-13 16:20:00+00'),
-
--- Mount Pulag Reports
 (3, 8, 5, 3, 'Foggy / Low Visibility', 'Very cold and low visibility along Ambangeg Trail. Bring proper cold weather gear.', '2026-07-13 05:45:00+00');
