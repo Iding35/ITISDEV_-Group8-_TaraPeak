@@ -33,9 +33,20 @@ CREATE TABLE IF NOT EXISTS plans (
     plan_id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     mountain_id INT NOT NULL,
+    waypoint_id INT NOT NULL,
     date DATE NOT NULL,
-    CONSTRAINT plans_fk_users FOREIGN KEY (user_id) REFERENCES users(user_id),
-    CONSTRAINT plans_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id)
+
+    CONSTRAINT plans_fk_users
+        FOREIGN KEY (user_id)
+        REFERENCES users(user_id),
+
+    CONSTRAINT plans_fk_mountains
+        FOREIGN KEY (mountain_id)
+        REFERENCES mountains(mountain_id),
+
+    CONSTRAINT plans_fk_waypoints
+        FOREIGN KEY (waypoint_id)
+        REFERENCES route_waypoints(waypoint_id)
 );
 
 CREATE TABLE IF NOT EXISTS gear_recommendations (
@@ -304,18 +315,16 @@ INSERT INTO trail_reports (mountain_id, waypoint_id, user_id, rating, condition,
 -- ==========================================================
 -- PLANNED TRIPS (`plans`)
 -- ==========================================================
-INSERT INTO plans (user_id, mountain_id, date) VALUES
--- TODAY'S DATE (for live crowdedness checking)
-(1, 1, CURRENT_DATE),
-(2, 1, CURRENT_DATE),
-(3, 1, CURRENT_DATE),
-(4, 1, CURRENT_DATE),
-(5, 2, CURRENT_DATE),
+INSERT INTO plans (user_id, mountain_id, waypoint_id, date) VALUES
+(1, 1, 3, CURRENT_DATE),
+(2, 1, 1, CURRENT_DATE),
+(3, 1, 2, CURRENT_DATE),
+(4, 1, 3, CURRENT_DATE),
+(5, 2, 7, CURRENT_DATE),
 
--- FUTURE DATES 
-(1, 1, CURRENT_DATE + 5),
-(2, 1, CURRENT_DATE + 12),
-(3, 3, CURRENT_DATE + 10),
-(4, 3, CURRENT_DATE + 10),
-(5, 3, CURRENT_DATE + 20),
-(1, 2, CURRENT_DATE + 7);
+(1, 1, 2, CURRENT_DATE + 5),
+(2, 1, 3, CURRENT_DATE + 12),
+(3, 3, 10, CURRENT_DATE + 10),
+(4, 3, 8, CURRENT_DATE + 10),
+(5, 3, 11, CURRENT_DATE + 20),
+(1, 2, 5, CURRENT_DATE + 7);

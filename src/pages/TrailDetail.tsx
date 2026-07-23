@@ -305,7 +305,7 @@ function SavePlanSection({
     setSaveStatus('saving');
     setSaveError(null);
     try {
-      await createPlan(mountainId, date);
+      await createPlan(mountainId, selectedTrail.waypoint_id, date);
       setSaveStatus('saved');
     } catch (err) {
       setSaveStatus('error');

@@ -246,13 +246,28 @@ export async function fetchCurrentUser(): Promise<User> {
   return response.json();
 }
 
-export async function createPlan(mountainId: number, hikingDate: string): Promise<Plan> {
+export async function createPlan(
+  mountainId: number,
+  waypointId: number,
+  hikingDate: string
+): Promise<Plan> {
   const response = await fetch(`${API_URL}/plans`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ mountain_id: mountainId, date: hikingDate }),
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      mountain_id: mountainId,
+      waypoint_id: waypointId,
+      date: hikingDate,
+    }),
   });
-  if (!response.ok) throw await extractError(response, 'Could not save plan');
+
+  if (!response.ok) {
+    throw await extractError(response, 'Could not save plan');
+  }
+
   return response.json();
 }
 

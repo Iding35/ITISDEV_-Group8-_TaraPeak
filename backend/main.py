@@ -270,6 +270,7 @@ def create_trail_report(
 
 class CreatePlanRequest(BaseModel):
     mountain_id: int
+    waypoint_id: int
     date: date
 
 
@@ -283,12 +284,27 @@ def create_plan(payload: CreatePlanRequest, current_user: dict = Depends(get_cur
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cursor.execute(
-        """
-        INSERT INTO plans (user_id, mountain_id, date)
-        VALUES (%s, %s, %s)
-        RETURNING plan_id, user_id, mountain_id, date
-        """,
-        (current_user["user_id"], payload.mountain_id, payload.date),
+    """
+    INSERT INTO plans (
+        user_id,
+        mountain_id,
+        waypoint_id,
+        date
+    )
+    VALUES (%s, %s, %s, %s)
+    RETURNING
+        plan_id,
+        user_id,
+        mountain_id,
+        waypoint_id,
+        date
+    """,
+    (
+        current_user["user_id"],
+        payload.mountain_id,
+        payload.waypoint_id,
+        payload.date,
+    ),
     )
     plan = dict(cursor.fetchone())
     conn.commit()
@@ -326,9 +342,8 @@ FROM plans p
 JOIN mountains m
 ON m.mountain_id = p.mountain_id
 
-LEFT JOIN route_waypoints rw
-ON rw.mountain_id = p.mountain_id
-AND rw.sequence_order = 1
+JOIN route_waypoints rw
+ON rw.waypoint_id = p.waypoint_id
 
 LEFT JOIN plan_members pm
 ON pm.plan_id = p.plan_id
@@ -540,9 +555,8 @@ FROM plans p
 JOIN mountains m
 ON p.mountain_id = m.mountain_id
 
-LEFT JOIN route_waypoints rw
-ON rw.mountain_id = p.mountain_id
-AND rw.sequence_order = 1
+JOIN route_waypoints rw
+ON rw.waypoint_id = p.waypoint_id
 
 LEFT JOIN plan_members pm
 ON p.plan_id = pm.plan_id
