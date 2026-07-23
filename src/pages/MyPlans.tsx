@@ -245,6 +245,7 @@ export default function MyPlans() {
                       )}
                     </div>
                     <p className="font-label-md text-label-md text-on-surface-variant">{plan.location}</p>
+                    <p className="text-sm text-primary"> {plan.trail_name} </p>
                     <p className="font-label-md text-label-md text-secondary mt-1">{formatDate(plan.date)}</p>
                     {displayNames.length > 0 && (
                       <p className="font-label-md text-label-md text-on-surface-variant mt-1">

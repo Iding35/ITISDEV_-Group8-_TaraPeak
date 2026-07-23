@@ -304,13 +304,40 @@ def list_plans(current_user: dict = Depends(get_current_user)):
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cursor.execute(
         """
-        SELECT DISTINCT p.plan_id, p.date, p.user_id AS owner_id, m.mountain_id,
-               m.mountain_name, m.location, m.image_url
-        FROM plans p
-        JOIN mountains m ON m.mountain_id = p.mountain_id
-        LEFT JOIN plan_members pm ON pm.plan_id = p.plan_id AND pm.status = 'accepted'
-        WHERE p.user_id = %s OR pm.user_id = %s
-        ORDER BY p.date ASC
+        SELECT DISTINCT
+    p.plan_id,
+    p.date,
+    p.user_id AS owner_id,
+
+    m.mountain_id,
+    m.mountain_name,
+    m.location,
+    m.image_url,
+    m.terrain,
+
+    rw.name AS trail_name,
+    rw.description AS trail_description,
+    rw.distance_from_start_km,
+    rw.estimated_time,
+    rw.difficulty
+
+FROM plans p
+
+JOIN mountains m
+ON m.mountain_id = p.mountain_id
+
+LEFT JOIN route_waypoints rw
+ON rw.mountain_id = p.mountain_id
+AND rw.sequence_order = 1
+
+LEFT JOIN plan_members pm
+ON pm.plan_id = p.plan_id
+AND pm.status = 'accepted'
+
+WHERE p.user_id = %s
+OR pm.user_id = %s
+
+ORDER BY p.date ASC
         """,
         (current_user["user_id"], current_user["user_id"]),
     )
@@ -489,13 +516,40 @@ def get_plan_detail(plan_id: int, current_user: dict = Depends(get_current_user)
     # 1. Fetch plan & verify authorization
     cursor.execute(
         """
-        SELECT p.plan_id, p.date, p.user_id AS owner_id,
-               m.mountain_id, m.mountain_name, m.location, m.image_url,
-               (p.user_id = %s) AS is_owner
-        FROM plans p
-        JOIN mountains m ON p.mountain_id = m.mountain_id
-        LEFT JOIN plan_members pm ON p.plan_id = pm.plan_id AND pm.user_id = %s
-        WHERE p.plan_id = %s AND (p.user_id = %s OR pm.user_id = %s);
+       SELECT
+    p.plan_id,
+    p.date,
+    p.user_id AS owner_id,
+
+    m.mountain_id,
+    m.mountain_name,
+    m.location,
+    m.image_url,
+    m.terrain,
+
+    rw.name AS trail_name,
+    rw.description AS trail_description,
+    rw.distance_from_start_km,
+    rw.estimated_time,
+    rw.difficulty,
+
+    (p.user_id = %s) AS is_owner
+
+FROM plans p
+
+JOIN mountains m
+ON p.mountain_id = m.mountain_id
+
+LEFT JOIN route_waypoints rw
+ON rw.mountain_id = p.mountain_id
+AND rw.sequence_order = 1
+
+LEFT JOIN plan_members pm
+ON p.plan_id = pm.plan_id
+AND pm.user_id = %s
+
+WHERE p.plan_id = %s
+AND (p.user_id = %s OR pm.user_id = %s)
         """,
         (current_user["user_id"], current_user["user_id"], plan_id, current_user["user_id"], current_user["user_id"])
     )

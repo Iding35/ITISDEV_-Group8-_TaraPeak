@@ -99,6 +99,24 @@ export default function PlanDetail() {
               <div>
                 <span className="text-secondary font-label-md uppercase tracking-wider">{plan.location}</span>
                 <h1 className="font-display-lg text-display-lg text-primary">{plan.mountain_name}</h1>
+                <p className="mt-2 text-primary font-semibold">
+                  {plan.trail_name}
+                </p>
+
+                <p className="mt-4 text-on-surface-variant">
+                  {plan.description}
+                </p>
+
+                <div className="grid grid-cols-2 gap-4 mt-6">
+                <p><strong>Difficulty:</strong> {plan.difficulty}</p>
+                <p><strong>Estimated Time:</strong> {plan.estimated_time} mins</p>
+                <p><strong>Terrain:</strong> {plan.terrain}</p>
+                <p><strong>Distance:</strong> {plan.distance_from_start_km} km</p>
+            </div>
+
+            <p className="mt-4 text-red-600">
+                <strong>Hazards:</strong> {plan.hazards}
+            </p>
                 <p className="font-headline-sm text-on-surface-variant mt-1">{formatDate(plan.date)}</p>
               </div>
               {plan.is_owner ? (

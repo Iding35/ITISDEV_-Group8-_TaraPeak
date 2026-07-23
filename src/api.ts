@@ -40,6 +40,12 @@ export interface Plan {
   mountain_name: string;
   location: string;
   image_url: string;
+  trail_name: string;
+  trail_description: string;
+  difficulty: string;
+  estimated_time: number;
+  distance_from_start_km: number;
+  terrain: string;
 }
 
 export interface PlanInvite {
