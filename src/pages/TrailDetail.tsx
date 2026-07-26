@@ -169,16 +169,15 @@ function TrailAndCheckpointSection({
           <p className="text-sm text-gray-500 mt-3">Loading mountain trails…</p>
         ) : (
           <div
-      className={`grid gap-3 mt-4 ${
-        trails.length === 1
-          ? 'grid-cols-1 max-w-sm'
-          : trails.length === 2
-            ? 'grid-cols-1 sm:grid-cols-2'
-            : trails.length === 3
-              ? 'grid-cols-1 sm:grid-cols-3'
-              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-      }`}
-    >
+            className={`grid gap-3 mt-4 ${trails.length === 1
+              ? 'grid-cols-1 max-w-sm'
+              : trails.length === 2
+                ? 'grid-cols-1 sm:grid-cols-2'
+                : trails.length === 3
+                  ? 'grid-cols-1 sm:grid-cols-3'
+                  : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+              }`}
+          >
             {trails.map((t) => {
               const isSelected = selectedTrail?.waypoint_id === t.waypoint_id;
               return (
@@ -186,11 +185,10 @@ function TrailAndCheckpointSection({
                   type="button"
                   key={t.waypoint_id}
                   onClick={() => onSelectTrail(t)}
-                  className={`p-3.5 text-left rounded-xl border transition-all ${
-                    isSelected
-                      ? 'border-primary ring-2 ring-primary/20 bg-primary/10 font-bold text-primary'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
+                  className={`p-3.5 text-left rounded-xl border transition-all ${isSelected
+                    ? 'border-primary ring-2 ring-primary/20 bg-primary/10 font-bold text-primary'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
                 >
                   <div className="text-base font-semibold">{t.name}</div>
                   <div className="text-xs text-gray-500 mt-1">
@@ -225,11 +223,10 @@ function TrailAndCheckpointSection({
                 <li
                   key={cp.checkpoint_id}
                   onClick={() => onSelectCheckpoint(cp)}
-                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
-                      : 'border-gray-200/80 bg-white hover:border-gray-300'
-                  }`}
+                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${isSelected
+                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
+                    : 'border-gray-200/80 bg-white hover:border-gray-300'
+                    }`}
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                     {cp.sequence_order}
@@ -560,6 +557,7 @@ function TrailReportsSection({
 
 export default function TrailDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
 
   const [mountain, setMountain] = useState<Mountain | null>(null);
   const [selectedTrail, setSelectedTrail] = useState<Waypoint | null>(null);
@@ -577,6 +575,18 @@ export default function TrailDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const difficultyDisabledReason = !user
+    ? 'Log in to generate an AI Trail Difficulty Analysis.'
+    : !selectedTrail || !date
+      ? 'Please select a trail and hiking date above to analyze difficulty.'
+      : undefined;
+
+  const safetyDisabledReason = !user
+    ? 'Log in to generate an AI Safety Advisory.'
+    : !selectedTrail || !date
+      ? 'Please select a trail and hiking date above to generate safety advisory.'
+      : undefined;
+
   return (
     <div className="bg-background text-gray-800 min-h-screen">
       <Navbar />
@@ -590,21 +600,21 @@ export default function TrailDetail() {
 
         {mountain && (
           <div className="flex flex-col gap-8">
-    <div>
-      <h1 className="text-4xl font-bold text-primary mb-2">{mountain.mountain_name}</h1>
-      <p className="text-gray-500">
-        {mountain.location} • {mountain.terrain}
-      </p>
-    </div>
-    <img
-      src={`/${mountain.image_url}`}
-      alt={mountain.mountain_name}
-      className="w-full h-[420px] rounded-2xl object-cover shadow-lg"
-    />
-    <section className="mb-2">
-      <h2 className="text-2xl font-semibold text-primary mb-4">Description</h2>
-      <p className="leading-8 text-gray-700">{mountain.description}</p>
-    </section>
+            <div>
+              <h1 className="text-4xl font-bold text-primary mb-2">{mountain.mountain_name}</h1>
+              <p className="text-gray-500">
+                {mountain.location} • {mountain.terrain}
+              </p>
+            </div>
+            <img
+              src={`/${mountain.image_url}`}
+              alt={mountain.mountain_name}
+              className="w-full h-[420px] rounded-2xl object-cover shadow-lg"
+            />
+            <section className="mb-2">
+              <h2 className="text-2xl font-semibold text-primary mb-4">Description</h2>
+              <p className="leading-8 text-gray-700">{mountain.description}</p>
+            </section>
 
             {/* Leaflet Trail Map */}
             <TrailMap
@@ -645,8 +655,8 @@ export default function TrailDetail() {
                 title="AI Trail Difficulty Analysis"
                 icon="fitness_center"
                 buttonLabel="Analyze Difficulty"
-                disabled={!selectedTrail || !date}
-                disabledHint="Please select a trail and hiking date above to analyze difficulty."
+                disabled={!!difficultyDisabledReason}
+                disabledHint={difficultyDisabledReason}
                 fetcher={() => fetchDifficultyAnalysis(mountain.mountain_id)}
               />
 
@@ -654,8 +664,8 @@ export default function TrailDetail() {
                 title="AI Safety Advisory"
                 icon="shield"
                 buttonLabel="Check Safety"
-                disabled={!selectedTrail || !date}
-                disabledHint="Please select a trail and hiking date above to generate safety advisory."
+                disabled={!!safetyDisabledReason}
+                disabledHint={safetyDisabledReason}
                 fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, date)}
               />
             </div>
