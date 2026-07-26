@@ -302,6 +302,7 @@ function SavePlanSection({
   }, [mountainId, date, selectedTrail, user]);
 
   async function handleSave() {
+    if (!selectedTrail) return;
     setSaveStatus('saving');
     setSaveError(null);
     try {

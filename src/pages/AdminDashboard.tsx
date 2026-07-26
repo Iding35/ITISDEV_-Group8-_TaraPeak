@@ -19,11 +19,11 @@ import {
 } from '../api';
 
 const CHART_COLORS = {
-  darkForest: '#14532D',  
-  saddleBrown: '#78350F', 
-  mossGreen: '#3F6212',   
-  amberEarth: '#B45309', 
-  darkOlive: '#365314',  
+  darkForest: '#14532D',
+  saddleBrown: '#78350F',
+  mossGreen: '#3F6212',
+  amberEarth: '#B45309',
+  darkOlive: '#365314',
 };
 
 const PIE_COLORS = [
@@ -79,7 +79,7 @@ export default function AdminDashboard() {
   const trailReportSummaries = selectedTrailMountainFilter === ''
     ? reportSummaries
     : reportSummaries.filter((item) => item.mountain_id === selectedTrailMountainFilter);
-  
+
   const handleCheckHikers = async () => {
     if (!selectedMountain || !selectedDate) return;
     const data = await fetchHikersByDate(Number(selectedMountain), selectedDate);
@@ -125,9 +125,9 @@ export default function AdminDashboard() {
           <div className="text-center py-8 text-xs text-gray-500">Loading charts...</div>
         ) : (
           <div className="space-y-8 print:space-y-6">
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-              
+
               <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-between overflow-hidden">
                 <div>
                   <div className="flex justify-between items-start mb-4">
@@ -171,11 +171,11 @@ export default function AdminDashboard() {
                       margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#F5F5F4" />
-                      
-                      <XAxis 
-                        type="number" 
-                        hide={true} 
-                        domain={[0, (dataMax: number) => Math.max(dataMax + 1, 2)]} 
+
+                      <XAxis
+                        type="number"
+                        hide={true}
+                        domain={[0, (dataMax: number) => Math.max(dataMax + 1, 2)]}
                       />
                       <YAxis
                         type="category"
@@ -183,11 +183,11 @@ export default function AdminDashboard() {
                         axisLine={false}
                         tickLine={false}
                         tick={{ fontSize: 11, fill: '#44403C', fontWeight: 600 }}
-                        width={65} 
+                        width={65}
                       />
                       <Tooltip
                         cursor={{ fill: '#F5F5F4' }}
-                        content={({ active, payload, label }) => {
+                        content={({ active, payload, label }: any) => {
                           if (active && payload && payload.length) {
                             const val = payload[0].value as number;
                             return (
@@ -214,12 +214,12 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-                            <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-between overflow-hidden">
+              <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-between overflow-hidden">
                 <div>
                   <h3 className="font-bold text-lg text-primary mb-1">Condition Reports Breakdown</h3>
                   <p className="text-xs text-stone-600 mb-2">Proportion of filed reports per mountain.</p>
                 </div>
-                
+
                 <div className="h-64 w-full flex items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -254,7 +254,7 @@ export default function AdminDashboard() {
                   <h3 className="font-bold text-lg text-primary mb-1">Trail-Specific Report Dissection</h3>
                   <p className="text-xs text-stone-600">Detailed breakdown of condition reports submitted per specific trail/waypoint point.</p>
                 </div>
-                
+
                 <div className="w-full sm:w-64">
                   <select
                     value={selectedTrailMountainFilter}
@@ -268,7 +268,7 @@ export default function AdminDashboard() {
                   </select>
                 </div>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-stone-100 text-primary font-bold uppercase border-b border-stone-200">
@@ -299,7 +299,7 @@ export default function AdminDashboard() {
 
             <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm print:shadow-none print:border-stone-300">
               <h3 className="font-bold text-lg text-primary mb-1">Popularity & Diagnostic Summary</h3>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-stone-100 text-primary font-bold uppercase border-b border-stone-200">
@@ -325,11 +325,11 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
-            
-            
+
+
             <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm print:shadow-none print:border-stone-300">
               <h3 className="font-bold text-lg text-primary mb-1">Daily Crowdedness Check</h3>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 items-end print:hidden">
                 <div>
                   <label className="text-xs font-bold text-primary">Mountain</label>

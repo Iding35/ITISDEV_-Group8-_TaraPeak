@@ -11,7 +11,7 @@ function MountainWordmark() {
   );
 }
 
-function ComingSoonLink({ label }: { label: string }) {
+export function ComingSoonLink({ label }: { label: string }) {
   return (
     <span
       aria-disabled="true"
