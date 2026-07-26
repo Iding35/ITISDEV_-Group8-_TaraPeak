@@ -29,6 +29,22 @@ CREATE TABLE IF NOT EXISTS weather_forecasts (
     CONSTRAINT weather_unique UNIQUE (mountain_id, hiking_date)
 );
 
+CREATE TABLE IF NOT EXISTS route_waypoints (
+    waypoint_id SERIAL PRIMARY KEY,
+    mountain_id INT NOT NULL,
+    sequence_order INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    longitude FLOAT NOT NULL,
+    latitude FLOAT NOT NULL,
+    elevation_m INT,
+    difficulty VARCHAR(20) NOT NULL,
+    estimated_time FLOAT NOT NULL,
+    distance_from_start_km DECIMAL(4,1),
+    total_hikers INT DEFAULT 0, -- added total hikers PER TRAIL (PHILLIN)
+    CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS plans (
     plan_id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
@@ -57,21 +73,7 @@ CREATE TABLE IF NOT EXISTS gear_recommendations (
     CONSTRAINT gear_fk_plans FOREIGN KEY (plan_id) REFERENCES plans(plan_id)
 );
 
-CREATE TABLE IF NOT EXISTS route_waypoints (
-    waypoint_id SERIAL PRIMARY KEY,
-    mountain_id INT NOT NULL,
-    sequence_order INT NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    longitude FLOAT NOT NULL,
-    latitude FLOAT NOT NULL,
-    elevation_m INT,
-    difficulty VARCHAR(20) NOT NULL,
-    estimated_time FLOAT NOT NULL,
-    distance_from_start_km DECIMAL(4,1),
-    total_hikers INT DEFAULT 0, -- added total hikers PER TRAIL (PHILLIN)
-    CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE
-);
+
 
 CREATE TABLE IF NOT EXISTS trail_reports (
     report_id SERIAL PRIMARY KEY,

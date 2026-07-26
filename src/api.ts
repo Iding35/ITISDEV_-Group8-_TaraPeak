@@ -42,10 +42,12 @@ export interface Plan {
   image_url: string;
   trail_name: string;
   trail_description: string;
+  description: string; // Added
   difficulty: string;
   estimated_time: number;
   distance_from_start_km: number;
   terrain: string;
+  hazards: string; // Added
 }
 
 export interface PlanInvite {
@@ -64,6 +66,7 @@ export interface DetailedPlanMember {
   user_id: number;
   name: string;
   email: string;
+  
   role: 'organizer' | 'member';
   status: 'pending' | 'accepted' | 'declined';
 }
