@@ -679,24 +679,42 @@ export default function TrailDetail() {
           <div className="flex flex-col gap-8">
             <div>
               <h1 className="text-4xl font-bold text-primary mb-2">{mountain.mountain_name}</h1>
-              <p className="text-gray-500">
-                {mountain.location} • {mountain.terrain}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 font-medium">
+                <span className="flex items-center gap-1 text-primary">
+                  <span className="material-symbols-outlined text-sm">location_on</span> {mountain.location}
+                </span>
+                <span>•</span>
+                <span>{mountain.terrain}</span>
+                {mountain.difficulty && (
+                  <>
+                    <span>•</span>
+                    <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-bold">
+                      {mountain.difficulty}
+                    </span>
+                  </>
+                )}
+                
+              </div>
             </div>
             <img
               src={`/${mountain.image_url}`}
               alt={mountain.mountain_name}
               className="w-full h-[420px] rounded-2xl object-cover shadow-lg"
             />
-            <section className="mb-2">
-              <h2 className="text-2xl font-semibold text-primary mb-4">Description</h2>
-              <p className="leading-8 text-gray-700">{mountain.description}</p>
-            </section>
+           <section className="bg-white rounded-2xl shadow-xs border border-gray-100 p-6 sm:p-8 mt-2">
+    <h2 className="text-xl font-bold text-gray-900 mb-3 flex items-center gap-2">
+      <span className="material-symbols-outlined text-primary text-lg">info</span>
+      About the Mountain
+    </h2>
+    <p className="text-base leading-relaxed text-gray-600">
+      {mountain.description}
+    </p>
+  </section>
 
-            {/* DUAL LAYOUT: Left map matches right trail panel height */}
+            
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
               
-              {/* Left Column: Interactive Map wrapped to fill the height */}
+              {/* Left Column: Interactive Map */}
               <div className="lg:col-span-6 lg:sticky lg:top-24 flex flex-col h-[650px]">
                 <div className="bg-white rounded-xl shadow-sm p-4 flex flex-col h-full [&>div]:flex-1">
                   <TrailMap
@@ -720,7 +738,7 @@ export default function TrailDetail() {
               </div>
             </div>
 
-            {/* SEPARATE BOTTOM SECTIONS: Step 3, AI Cards, & Reports */}
+            {/* Step 3, AI Cards, & Reports */}
             <div className="flex flex-col gap-8">
               {/* Step 3: Date Selection & Save Plan */}
               <SavePlanSection
