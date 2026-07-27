@@ -80,7 +80,20 @@ npm run dev
 
 Opens at `http://localhost:12345` (configured in `vite.config.ts`).
 
-Note: `src/api.ts` has `API_URL` hardcoded to `http://127.0.0.1:8000`. Keep the backend on port 8000, or update that constant if you run it elsewhere.
+The frontend calls the backend at `http://127.0.0.1:8000` by default. If port 8000 is already
+taken by another project on your machine, start the backend elsewhere and point the frontend at it:
+
+```
+cd backend && .venv\Scripts\python.exe -m uvicorn main:app --port 8010
+```
+
+then create a `.env` in the project root (see `.env.example`):
+
+```
+VITE_API_URL=http://127.0.0.1:8010
+```
+
+Restart `npm run dev` after changing `.env` — Vite only reads it at startup.
 
 To build for production:
 
