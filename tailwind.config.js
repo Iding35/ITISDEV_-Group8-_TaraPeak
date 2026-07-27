@@ -69,6 +69,13 @@ export default {
         md: '24px',
         xl: '80px',
         xs: '4px',
+        // Fixed app-bar height. Named so the value stays in one place instead
+        // of being derived from logo size plus padding at each call site.
+        header: '80px',
+        // Minimum comfortable touch target (WCAG 2.5.5). Do not go below 44px:
+        // this drives the bell/logout/account hit areas, not the icon glyph,
+        // which stays 24px on its own.
+        touch: '44px',
       },
       fontFamily: {
         'headline-lg': ['Inter'],
