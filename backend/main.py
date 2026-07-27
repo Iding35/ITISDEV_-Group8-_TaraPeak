@@ -15,13 +15,9 @@ import datetime
 import ai
 import weather
 from auth import get_current_user, router as auth_router
-from analytics import router as analytics_router 
-
-app = FastAPI()
-
-# 2. Register the router with your app
-app.include_router(analytics_router)
+from analytics import router as analytics_router
 from db import (
+    create_notification,
     get_cached_analysis,
     get_connection,
     get_weather_forecast,
@@ -268,14 +264,39 @@ def create_trail_report(
 # Hiking plans
 # ---------------------------------------------------------------------------
 
+class GearItemPayload(BaseModel):
+    gear_name: str
+    category: Optional[str] = "Other"
+    is_required: bool = True
+    reason: Optional[str] = ""
+
+
 class CreatePlanRequest(BaseModel):
     mountain_id: int
     waypoint_id: int
     date: date
 
+    # AI output generated for this exact mountain/trail/date, persisted with
+    # the plan so it survives later refreshes of the shared analysis cache.
+    ai_gear_summary: Optional[str] = None
+    ai_difficulty_analysis: Optional[str] = None
+    ai_safety_analysis: Optional[str] = None
+    ai_route_plan: Optional[str] = None
+    gear: Optional[list[GearItemPayload]] = None
 
-@app.post("/plans")
-def create_plan(payload: CreatePlanRequest, current_user: dict = Depends(get_current_user)):
+
+def _assert_trail_belongs_to_mountain(cursor, mountain_id: int, waypoint_id: int) -> dict:
+    cursor.execute(
+        "SELECT * FROM route_waypoints WHERE waypoint_id = %s AND mountain_id = %s",
+        (waypoint_id, mountain_id),
+    )
+    trail = cursor.fetchone()
+    if not trail:
+        raise HTTPException(status_code=400, detail="That trail doesn't belong to this mountain")
+    return dict(trail)
+
+
+def _store_plan(payload: CreatePlanRequest, current_user: dict) -> dict:
     fetch_mountain(payload.mountain_id)
 
     if payload.date < date.today():
@@ -283,35 +304,72 @@ def create_plan(payload: CreatePlanRequest, current_user: dict = Depends(get_cur
 
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute(
-    """
-    INSERT INTO plans (
-        user_id,
-        mountain_id,
-        waypoint_id,
-        date
-    )
-    VALUES (%s, %s, %s, %s)
-    RETURNING
-        plan_id,
-        user_id,
-        mountain_id,
-        waypoint_id,
-        date
-    """,
-    (
-        current_user["user_id"],
-        payload.mountain_id,
-        payload.waypoint_id,
-        payload.date,
-    ),
-    )
-    plan = dict(cursor.fetchone())
-    conn.commit()
-    cursor.close()
-    conn.close()
+    try:
+        _assert_trail_belongs_to_mountain(cursor, payload.mountain_id, payload.waypoint_id)
 
+        cursor.execute(
+            """
+            INSERT INTO plans (
+                user_id, mountain_id, waypoint_id, date,
+                ai_gear_summary, ai_difficulty_analysis, ai_safety_analysis, ai_route_plan
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING plan_id, user_id, mountain_id, waypoint_id, date,
+                      ai_gear_summary, ai_difficulty_analysis, ai_safety_analysis, ai_route_plan
+            """,
+            (
+                current_user["user_id"],
+                payload.mountain_id,
+                payload.waypoint_id,
+                payload.date,
+                payload.ai_gear_summary,
+                payload.ai_difficulty_analysis,
+                payload.ai_safety_analysis,
+                payload.ai_route_plan,
+            ),
+        )
+        plan = dict(cursor.fetchone())
+
+        if payload.gear:
+            cursor.executemany(
+                """
+                INSERT INTO gear_recommendations (plan_id, gear_name, category, reason, is_required)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                [
+                    (
+                        plan["plan_id"],
+                        item.gear_name,
+                        item.category or "Other",
+                        item.reason or "",
+                        item.is_required,
+                    )
+                    for item in payload.gear
+                ],
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+    plan["gear"] = [item.model_dump() for item in (payload.gear or [])]
     return plan
+
+
+@app.post("/plans/save")
+def save_plan(payload: CreatePlanRequest, current_user: dict = Depends(get_current_user)):
+    """Persist the final mountain, trail, date, and AI output for a hike plan."""
+    return _store_plan(payload, current_user)
+
+
+@app.post("/plans")
+def create_plan(payload: CreatePlanRequest, current_user: dict = Depends(get_current_user)):
+    """Alias of /plans/save kept for existing clients."""
+    return _store_plan(payload, current_user)
 
 
 @app.get("/plans")
@@ -324,12 +382,16 @@ def list_plans(current_user: dict = Depends(get_current_user)):
     p.plan_id,
     p.date,
     p.user_id AS owner_id,
+    p.waypoint_id,
+    p.updated_at,
 
     m.mountain_id,
     m.mountain_name,
     m.location,
     m.image_url,
     m.terrain,
+    m.description,
+    m.hazards,
 
     rw.name AS trail_name,
     rw.description AS trail_description,
@@ -385,6 +447,127 @@ ORDER BY p.date ASC
     return plans
 
 
+class UpdatePlanRequest(BaseModel):
+    # Qualified as datetime.date on purpose: a field literally named `date`
+    # with a default shadows the bare `date` type when Pydantic resolves
+    # annotations, which silently collapses the field type to None.
+    date: Optional[datetime.date] = None
+    waypoint_id: Optional[int] = None
+
+
+@app.patch("/plans/{plan_id}")
+def update_plan(
+    plan_id: int,
+    payload: UpdatePlanRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Organizer edits the plan; every member record is synced in the same transaction.
+
+    Members read the plan through plan_id, so the new date/trail is visible to
+    them the moment this commits. On top of that we stamp plan_members.synced_at
+    and queue a notification per member, so each member record carries proof of
+    the change and the member is told about it on their next login.
+    """
+    if payload.date is None and payload.waypoint_id is None:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    if payload.date is not None and payload.date < date.today():
+        raise HTTPException(status_code=400, detail="Hiking date can't be in the past")
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute(
+            """
+            SELECT p.plan_id, p.user_id, p.mountain_id, p.waypoint_id, p.date,
+                   m.mountain_name, rw.name AS trail_name
+            FROM plans p
+            JOIN mountains m ON m.mountain_id = p.mountain_id
+            JOIN route_waypoints rw ON rw.waypoint_id = p.waypoint_id
+            WHERE p.plan_id = %s
+            """,
+            (plan_id,),
+        )
+        plan = cursor.fetchone()
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        if plan["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Only the organizer can edit this plan")
+
+        new_date = payload.date or plan["date"]
+        new_waypoint_id = payload.waypoint_id or plan["waypoint_id"]
+
+        trail = _assert_trail_belongs_to_mountain(cursor, plan["mountain_id"], new_waypoint_id)
+
+        trail_changed = new_waypoint_id != plan["waypoint_id"]
+        date_changed = new_date != plan["date"]
+        if not trail_changed and not date_changed:
+            return {"plan_id": plan_id, "changed": False, "members_synced": 0}
+
+        # The stored AI output was generated for the old trail/date, so it no
+        # longer describes this plan. Clear it rather than serve stale advice.
+        cursor.execute(
+            """
+            UPDATE plans
+            SET date = %s,
+                waypoint_id = %s,
+                ai_gear_summary = NULL,
+                ai_difficulty_analysis = NULL,
+                ai_safety_analysis = NULL,
+                ai_route_plan = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE plan_id = %s
+            RETURNING plan_id, mountain_id, waypoint_id, date, updated_at
+            """,
+            (new_date, new_waypoint_id, plan_id),
+        )
+        updated = dict(cursor.fetchone())
+
+        cursor.execute("DELETE FROM gear_recommendations WHERE plan_id = %s", (plan_id,))
+
+        # Propagate to every associated member record.
+        cursor.execute(
+            """
+            UPDATE plan_members
+            SET synced_at = CURRENT_TIMESTAMP
+            WHERE plan_id = %s AND status <> 'declined'
+            RETURNING user_id
+            """,
+            (plan_id,),
+        )
+        member_ids = [row["user_id"] for row in cursor.fetchall()]
+
+        changes = []
+        if date_changed:
+            changes.append(f"moved to {new_date.isoformat()}")
+        if trail_changed:
+            changes.append(f"trail changed to {trail['name']}")
+        change_text = " and ".join(changes)
+
+        organizer_name = f'{current_user["first_name"]} {current_user["last_name"]}'
+        for member_id in member_ids:
+            create_notification(
+                cursor,
+                member_id,
+                "Plan updated",
+                f'{organizer_name} updated the {plan["mountain_name"]} hike: {change_text}.',
+                "plan_updated",
+                plan_id,
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+    updated["changed"] = True
+    updated["members_synced"] = len(member_ids)
+    return updated
+
+
 @app.delete("/plans/{plan_id}")
 def delete_plan(plan_id: int, current_user: dict = Depends(get_current_user)):
     conn = get_connection()
@@ -412,7 +595,19 @@ def delete_plan(plan_id: int, current_user: dict = Depends(get_current_user)):
 
 
 class InvitePlanMemberRequest(BaseModel):
-    email: EmailStr
+    """Accepts either a username or an email address in `identifier`.
+
+    `email` is still honoured so older clients keep working.
+    """
+
+    identifier: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+    def lookup_value(self) -> str:
+        value = (self.identifier or self.email or "").strip()
+        if not value:
+            raise HTTPException(status_code=400, detail="Enter a username or email address")
+        return value
 
 
 @app.post("/plans/{plan_id}/invite")
@@ -421,46 +616,70 @@ def invite_plan_member(
     payload: InvitePlanMemberRequest,
     current_user: dict = Depends(get_current_user),
 ):
+    lookup = payload.lookup_value()
+
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute(
+            """
+            SELECT p.plan_id, p.user_id, p.date, m.mountain_name
+            FROM plans p
+            JOIN mountains m ON m.mountain_id = p.mountain_id
+            WHERE p.plan_id = %s
+            """,
+            (plan_id,),
+        )
+        plan = cursor.fetchone()
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        if plan["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Only the plan owner can invite others")
 
-    cursor.execute("SELECT plan_id, user_id FROM plans WHERE plan_id = %s", (plan_id,))
-    plan = cursor.fetchone()
-    if not plan:
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=404, detail="Plan not found")
-    if plan["user_id"] != current_user["user_id"]:
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=403, detail="Only the plan owner can invite others")
+        cursor.execute(
+            "SELECT user_id FROM users WHERE LOWER(email) = LOWER(%s) OR LOWER(username) = LOWER(%s)",
+            (lookup, lookup),
+        )
+        invitee = cursor.fetchone()
+        if not invitee:
+            raise HTTPException(
+                status_code=404, detail="No TaraPeak account found with that username or email"
+            )
+        if invitee["user_id"] == current_user["user_id"]:
+            raise HTTPException(status_code=400, detail="You can't invite yourself")
 
-    cursor.execute("SELECT user_id FROM users WHERE email = %s", (payload.email,))
-    invitee = cursor.fetchone()
-    if not invitee:
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=404, detail="No TaraPeak account found with that email")
-    if invitee["user_id"] == current_user["user_id"]:
-        cursor.close()
-        conn.close()
-        raise HTTPException(status_code=400, detail="You can't invite yourself")
+        cursor.execute(
+            """
+            INSERT INTO plan_members (plan_id, user_id, status, invited_by)
+            VALUES (%s, %s, 'pending', %s)
+            ON CONFLICT (plan_id, user_id) DO UPDATE
+                SET status = CASE WHEN plan_members.status = 'declined' THEN 'pending'
+                                   ELSE plan_members.status END
+            RETURNING plan_member_id, status, (xmax = 0) AS is_new
+            """,
+            (plan_id, invitee["user_id"], current_user["user_id"]),
+        )
+        result = dict(cursor.fetchone())
 
-    cursor.execute(
-        """
-        INSERT INTO plan_members (plan_id, user_id, status, invited_by)
-        VALUES (%s, %s, 'pending', %s)
-        ON CONFLICT (plan_id, user_id) DO UPDATE
-            SET status = CASE WHEN plan_members.status = 'declined' THEN 'pending'
-                               ELSE plan_members.status END
-        RETURNING plan_member_id, status
-        """,
-        (plan_id, invitee["user_id"], current_user["user_id"]),
-    )
-    result = dict(cursor.fetchone())
-    conn.commit()
-    cursor.close()
-    conn.close()
+        if result.pop("is_new", False) or result["status"] == "pending":
+            organizer_name = f'{current_user["first_name"]} {current_user["last_name"]}'
+            create_notification(
+                cursor,
+                invitee["user_id"],
+                "New hike invitation",
+                f'{organizer_name} invited you to hike {plan["mountain_name"]} '
+                f'on {plan["date"].isoformat()}.',
+                "invite_received",
+                plan_id,
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
     return result
 
@@ -493,23 +712,46 @@ def list_plan_invites(current_user: dict = Depends(get_current_user)):
 def _respond_to_invite(plan_member_id: int, current_user: dict, new_status: str) -> dict:
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute(
-        "SELECT plan_member_id FROM plan_members WHERE plan_member_id = %s AND user_id = %s",
-        (plan_member_id, current_user["user_id"]),
-    )
-    if not cursor.fetchone():
+    try:
+        cursor.execute(
+            """
+            SELECT pm.plan_member_id, pm.plan_id, p.user_id AS organizer_id, m.mountain_name
+            FROM plan_members pm
+            JOIN plans p ON p.plan_id = pm.plan_id
+            JOIN mountains m ON m.mountain_id = p.mountain_id
+            WHERE pm.plan_member_id = %s AND pm.user_id = %s
+            """,
+            (plan_member_id, current_user["user_id"]),
+        )
+        invite = cursor.fetchone()
+        if not invite:
+            raise HTTPException(status_code=404, detail="Invite not found")
+
+        cursor.execute(
+            "UPDATE plan_members SET status = %s, synced_at = CURRENT_TIMESTAMP "
+            "WHERE plan_member_id = %s RETURNING plan_member_id, status",
+            (new_status, plan_member_id),
+        )
+        result = dict(cursor.fetchone())
+
+        member_name = f'{current_user["first_name"]} {current_user["last_name"]}'
+        verb = "accepted" if new_status == "accepted" else "declined"
+        create_notification(
+            cursor,
+            invite["organizer_id"],
+            f"Invitation {verb}",
+            f'{member_name} {verb} your invitation to {invite["mountain_name"]}.',
+            f"invite_{verb}",
+            invite["plan_id"],
+        )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         cursor.close()
         conn.close()
-        raise HTTPException(status_code=404, detail="Invite not found")
-
-    cursor.execute(
-        "UPDATE plan_members SET status = %s WHERE plan_member_id = %s RETURNING plan_member_id, status",
-        (new_status, plan_member_id),
-    )
-    result = dict(cursor.fetchone())
-    conn.commit()
-    cursor.close()
-    conn.close()
 
     return result
 
@@ -535,12 +777,20 @@ def get_plan_detail(plan_id: int, current_user: dict = Depends(get_current_user)
     p.plan_id,
     p.date,
     p.user_id AS owner_id,
+    p.waypoint_id,
+    p.updated_at,
+    p.ai_gear_summary,
+    p.ai_difficulty_analysis,
+    p.ai_safety_analysis,
+    p.ai_route_plan,
 
     m.mountain_id,
     m.mountain_name,
     m.location,
     m.image_url,
     m.terrain,
+    m.description,
+    m.hazards,
 
     rw.name AS trail_name,
     rw.description AS trail_description,
@@ -605,59 +855,143 @@ AND (p.user_id = %s OR pm.user_id = %s)
         (plan_id, plan_id)
     )
     members = cursor.fetchall()
+
+    cursor.execute(
+        """
+        SELECT gear_id, gear_name, category, reason, is_required
+        FROM gear_recommendations
+        WHERE plan_id = %s
+        ORDER BY is_required DESC, category, gear_id
+        """,
+        (plan_id,),
+    )
+    gear = cursor.fetchall()
+
     cursor.close()
     conn.close()
 
     plan_dict = dict(plan)
     plan_dict["members"] = [dict(m) for m in members]
+    plan_dict["gear"] = [dict(g) for g in gear]
     return plan_dict
 
 
 @app.delete("/plan-members/{plan_member_id}")
 def remove_plan_member(plan_member_id: int, current_user: dict = Depends(get_current_user)):
+    """Organizer removes a member. Access is revoked as soon as this commits,
+    because every plan read filters on plan_members."""
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    
-    # Ensure requester owns the plan associated with this member entry
-    cursor.execute(
-        """
-        SELECT p.user_id FROM plan_members pm
-        JOIN plans p ON pm.plan_id = p.plan_id
-        WHERE pm.plan_member_id = %s;
-        """,
-        (plan_member_id,)
-    )
-    row = cursor.fetchone()
-    if not row or row["user_id"] != current_user["user_id"]:
+    try:
+        cursor.execute(
+            """
+            SELECT p.user_id AS organizer_id, pm.user_id AS member_id,
+                   pm.plan_id, m.mountain_name
+            FROM plan_members pm
+            JOIN plans p ON pm.plan_id = p.plan_id
+            JOIN mountains m ON m.mountain_id = p.mountain_id
+            WHERE pm.plan_member_id = %s
+            """,
+            (plan_member_id,),
+        )
+        row = cursor.fetchone()
+        if not row or row["organizer_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Unauthorized to remove member")
+
+        cursor.execute("DELETE FROM plan_members WHERE plan_member_id = %s", (plan_member_id,))
+
+        create_notification(
+            cursor,
+            row["member_id"],
+            "Removed from a hike",
+            f'You were removed from the {row["mountain_name"]} hike plan.',
+            "member_removed",
+            row["plan_id"],
+        )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         cursor.close()
         conn.close()
-        raise HTTPException(status_code=403, detail="Unauthorized to remove member")
-
-    cursor.execute("DELETE FROM plan_members WHERE plan_member_id = %s", (plan_member_id,))
-    conn.commit()
-    cursor.close()
-    conn.close()
 
     return {"message": "Member removed successfully"}
 
 
+# ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+
+
 @app.get("/notifications")
-def get_notifications(current_user: dict = Depends(get_current_user)):
+def get_notifications(
+    unread_only: bool = Query(False),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user),
+):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    query = """
+        SELECT notification_id, user_id, title, message, type, reference_id, is_read, created_at
+        FROM notifications
+        WHERE user_id = %s
+    """
+    params: list = [current_user["user_id"]]
+    if unread_only:
+        query += " AND is_read = FALSE"
+    query += " ORDER BY created_at DESC LIMIT %s"
+    params.append(limit)
+
+    cursor.execute(query, params)
+    notifications = [dict(n) for n in cursor.fetchall()]
+
+    cursor.execute(
+        "SELECT COUNT(*) AS unread FROM notifications WHERE user_id = %s AND is_read = FALSE",
+        (current_user["user_id"],),
+    )
+    unread = cursor.fetchone()["unread"]
+
+    cursor.close()
+    conn.close()
+
+    return {"unread_count": unread, "notifications": notifications}
+
+
+@app.post("/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: int, current_user: dict = Depends(get_current_user)):
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cursor.execute(
-        """
-        SELECT notification_id, title, message, type, reference_id, is_read, created_at 
-        FROM notifications 
-        WHERE user_id = %s 
-        ORDER BY created_at DESC LIMIT 10;
-        """,
-        (current_user["user_id"],)
+        "UPDATE notifications SET is_read = TRUE WHERE notification_id = %s AND user_id = %s "
+        "RETURNING notification_id, is_read",
+        (notification_id, current_user["user_id"]),
     )
-    notifs = cursor.fetchall()
+    row = cursor.fetchone()
+    conn.commit()
     cursor.close()
     conn.close()
-    return [dict(n) for n in notifs]
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return dict(row)
+
+
+@app.post("/notifications/read-all")
+def mark_all_notifications_read(current_user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE notifications SET is_read = TRUE WHERE user_id = %s AND is_read = FALSE",
+        (current_user["user_id"],),
+    )
+    updated = cursor.rowcount
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {"marked_read": updated}
 # ---------------------------------------------------------------------------
 # AI analysis
 # ---------------------------------------------------------------------------
@@ -701,6 +1035,140 @@ def ai_safety(
 
     save_cached_analysis(mountain_id, "safety", analysis, cache_key)
     return {"mountain_id": mountain_id, "analysis": analysis, "cached": False}
+
+
+def _gather_gear_context(mountain_id: int, waypoint_id: int, hiking_date: Optional[date], user_id: int) -> dict:
+    """Collect everything the gear agent reasons over: trail, forecast, hiker
+    experience, and what recent hikers actually reported on this trail."""
+    mountain = fetch_mountain(mountain_id)
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute(
+        "SELECT * FROM route_waypoints WHERE waypoint_id = %s AND mountain_id = %s",
+        (waypoint_id, mountain_id),
+    )
+    trail = cursor.fetchone()
+    if not trail:
+        cursor.close()
+        conn.close()
+        raise HTTPException(status_code=400, detail="That trail doesn't belong to this mountain")
+
+    cursor.execute(
+        """
+        SELECT rating, condition, comment
+        FROM trail_reports
+        WHERE waypoint_id = %s
+        ORDER BY created_at DESC
+        LIMIT 5
+        """,
+        (waypoint_id,),
+    )
+    reports = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute("SELECT hiker_experience FROM users WHERE user_id = %s", (user_id,))
+    row = cursor.fetchone()
+    experience = (row or {}).get("hiker_experience") or "beginner"
+
+    cursor.close()
+    conn.close()
+
+    weather_data = get_weather_forecast(mountain_id, hiking_date) if hiking_date else None
+
+    return {
+        "mountain": mountain,
+        "trail": dict(trail),
+        "weather": weather_data,
+        "reports": reports,
+        "experience": experience,
+        "date": hiking_date.isoformat() if hiking_date else None,
+    }
+
+
+@app.post("/ai/gear/{mountain_id}")
+def ai_gear(
+    mountain_id: int,
+    waypoint_id: int = Query(...),
+    hiking_date: date = Query(None, alias="date"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate a packing list for a prospective plan (nothing is saved yet)."""
+    context = _gather_gear_context(mountain_id, waypoint_id, hiking_date, current_user["user_id"])
+    result = ai.recommend_gear(context)
+    return {
+        "mountain_id": mountain_id,
+        "waypoint_id": waypoint_id,
+        "summary": result.get("summary", ""),
+        "items": result.get("items", []),
+        "source": result.get("source", "ai"),
+    }
+
+
+@app.post("/plans/{plan_id}/gear")
+def regenerate_plan_gear(plan_id: int, current_user: dict = Depends(get_current_user)):
+    """Regenerate and persist the packing list for an already-saved plan."""
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute(
+        """
+        SELECT p.plan_id, p.mountain_id, p.waypoint_id, p.date, p.user_id
+        FROM plans p
+        LEFT JOIN plan_members pm ON pm.plan_id = p.plan_id AND pm.status = 'accepted'
+        WHERE p.plan_id = %s AND (p.user_id = %s OR pm.user_id = %s)
+        """,
+        (plan_id, current_user["user_id"], current_user["user_id"]),
+    )
+    plan = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found or unauthorized")
+    if plan["user_id"] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Only the organizer can regenerate gear")
+
+    context = _gather_gear_context(
+        plan["mountain_id"], plan["waypoint_id"], plan["date"], current_user["user_id"]
+    )
+    result = ai.recommend_gear(context)
+    items = result.get("items", [])
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute("DELETE FROM gear_recommendations WHERE plan_id = %s", (plan_id,))
+        if items:
+            cursor.executemany(
+                """
+                INSERT INTO gear_recommendations (plan_id, gear_name, category, reason, is_required)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                [
+                    (
+                        plan_id,
+                        item["gear_name"],
+                        item.get("category", "Other"),
+                        item.get("reason", ""),
+                        item.get("is_required", True),
+                    )
+                    for item in items
+                ],
+            )
+        cursor.execute(
+            "UPDATE plans SET ai_gear_summary = %s, updated_at = CURRENT_TIMESTAMP WHERE plan_id = %s",
+            (result.get("summary", ""), plan_id),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+    return {"plan_id": plan_id, "summary": result.get("summary", ""), "items": items,
+            "source": result.get("source", "ai")}
 
 
 @app.post("/ai/route-optimization/{mountain_id}")
@@ -829,4 +1297,7 @@ async def get_ors_route(payload: ORSRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    # Defaults to 8000. Set API_PORT in backend/.env if that port is already
+    # taken on your machine, and set VITE_API_URL in the root .env to match.
+    port = int(os.environ.get("API_PORT", "8000"))
+    uvicorn.run("main:app", host="127.0.0.1", port=port, reload=True)
