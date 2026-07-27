@@ -16,6 +16,7 @@ export interface User {
   user_id: number;
   first_name: string;
   last_name: string;
+  username: string;
   email: string;
   hiker_experience: string;
   role: string;
@@ -35,6 +36,8 @@ export interface Plan {
   plan_id: number;
   date: string;
   owner_id: number;
+  waypoint_id: number;
+  updated_at: string | null;
   is_owner: boolean;
   members: PlanMember[];
   mountain_id: number;
@@ -43,12 +46,27 @@ export interface Plan {
   image_url: string;
   trail_name: string;
   trail_description: string;
-  description: string; // Added
+  description: string;
   difficulty: string;
   estimated_time: number;
   distance_from_start_km: number;
   terrain: string;
-  hazards: string; // Added
+  hazards: string | null;
+}
+
+export interface GearItem {
+  gear_id?: number;
+  gear_name: string;
+  category: string;
+  is_required: boolean;
+  reason: string;
+}
+
+export interface GearRecommendation {
+  summary: string;
+  items: GearItem[];
+  /** 'ai' when the model answered, 'fallback' when the rule-based list was used. */
+  source: 'ai' | 'fallback';
 }
 
 export interface PlanInvite {
@@ -74,17 +92,34 @@ export interface DetailedPlanMember {
 
 export interface DetailedPlan extends Plan {
   members: DetailedPlanMember[];
+  gear: GearItem[];
+  ai_gear_summary: string | null;
+  ai_difficulty_analysis: string | null;
+  ai_safety_analysis: string | null;
+  ai_route_plan: string | null;
 }
+
+export type NotificationType =
+  | 'invite_received'
+  | 'invite_accepted'
+  | 'invite_declined'
+  | 'plan_updated'
+  | 'member_removed';
 
 export interface AppNotification {
   notification_id: number;
   user_id: number;
   title: string;
   message: string;
-  type: string;
-  reference_id: number;
+  type: NotificationType | string;
+  reference_id: number | null;
   is_read: boolean;
   created_at: string;
+}
+
+export interface NotificationFeed {
+  unread_count: number;
+  notifications: AppNotification[];
 }
 
 export interface WeatherForecast {
@@ -181,7 +216,9 @@ export interface MountainReportSummary {
   latest_report?: string;
 }
 
-const API_URL = 'http://127.0.0.1:8000';
+// Defaults to port 8000. Override with VITE_API_URL in a .env file when that
+// port is taken by another project on your machine.
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
 const TOKEN_KEY = 'tarapeak_token';
 
 export function getToken(): string | null {
@@ -251,12 +288,22 @@ export async function fetchCurrentUser(): Promise<User> {
   return response.json();
 }
 
+export interface SavePlanAiOutputs {
+  ai_gear_summary?: string | null;
+  ai_difficulty_analysis?: string | null;
+  ai_safety_analysis?: string | null;
+  ai_route_plan?: string | null;
+  gear?: GearItem[];
+}
+
+/** Saves the final mountain, trail, date, and any AI output generated for them. */
 export async function createPlan(
   mountainId: number,
   waypointId: number,
-  hikingDate: string
+  hikingDate: string,
+  aiOutputs: SavePlanAiOutputs = {}
 ): Promise<Plan> {
-  const response = await fetch(`${API_URL}/plans`, {
+  const response = await fetch(`${API_URL}/plans/save`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -266,6 +313,7 @@ export async function createPlan(
       mountain_id: mountainId,
       waypoint_id: waypointId,
       date: hikingDate,
+      ...aiOutputs,
     }),
   });
 
@@ -273,6 +321,47 @@ export async function createPlan(
     throw await extractError(response, 'Could not save plan');
   }
 
+  return response.json();
+}
+
+/** Organizer-only edit. The backend syncs every member record in the same transaction. */
+export async function updatePlan(
+  planId: number,
+  changes: { date?: string; waypoint_id?: number }
+): Promise<{ changed: boolean; members_synced: number }> {
+  const response = await fetch(`${API_URL}/plans/${planId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(changes),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not update plan');
+  return response.json();
+}
+
+/** Generates a packing list for a prospective plan without saving anything. */
+export async function generateGearRecommendation(
+  mountainId: number,
+  waypointId: number,
+  hikingDate?: string
+): Promise<GearRecommendation> {
+  const params = new URLSearchParams({ waypoint_id: String(waypointId) });
+  if (hikingDate) params.set('date', hikingDate);
+
+  const response = await fetch(`${API_URL}/ai/gear/${mountainId}?${params}`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not generate gear recommendations');
+  return response.json();
+}
+
+/** Regenerates and persists the packing list for an already-saved plan. */
+export async function regeneratePlanGear(planId: number): Promise<GearRecommendation> {
+  const response = await fetch(`${API_URL}/plans/${planId}/gear`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not regenerate gear');
   return response.json();
 }
 
@@ -306,12 +395,29 @@ export async function removePlanMember(planMemberId: number): Promise<void> {
   if (!response.ok) throw await extractError(response, 'Could not remove member');
 }
 
-export async function fetchNotifications(): Promise<AppNotification[]> {
-  const response = await fetch(`${API_URL}/notifications`, {
+export async function fetchNotifications(unreadOnly = false): Promise<NotificationFeed> {
+  const params = unreadOnly ? '?unread_only=true' : '';
+  const response = await fetch(`${API_URL}/notifications${params}`, {
     headers: authHeaders(),
   });
   if (!response.ok) throw await extractError(response, 'Could not load notifications');
   return response.json();
+}
+
+export async function markNotificationRead(notificationId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not update notification');
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const response = await fetch(`${API_URL}/notifications/read-all`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not update notifications');
 }
 
 export async function checkWeather(
@@ -399,11 +505,15 @@ export async function createTrailReport(
   return response.json();
 }
 
-export async function invitePlanMember(planId: number, email: string): Promise<{ plan_member_id: number; status: string }> {
+/** `identifier` accepts either a TaraPeak username or an email address. */
+export async function invitePlanMember(
+  planId: number,
+  identifier: string
+): Promise<{ plan_member_id: number; status: string }> {
   const response = await fetch(`${API_URL}/plans/${planId}/invite`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ identifier }),
   });
   if (!response.ok) throw await extractError(response, 'Could not send invite');
   return response.json();
