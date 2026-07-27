@@ -137,7 +137,9 @@ function MountainWordmark() {
     <img
       src="/logo-tarapeak.png"
       alt="TaraPeak"
-      className="h-11 w-auto object-contain"
+      // Grows from the left edge so the mark stays pinned to the page margin
+      // instead of creeping into it. Transform only, so nothing reflows.
+      className="h-11 w-auto origin-left object-contain transition-transform duration-200 ease-out group-hover:scale-105 group-focus-visible:scale-105 motion-reduce:transform-none motion-reduce:transition-none"
     />
   );
 }
@@ -302,7 +304,7 @@ export default function Navbar() {
         <Link
           to="/"
           aria-label="TaraPeak home"
-          className="justify-self-start inline-flex rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          className="group justify-self-start inline-flex rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
           <MountainWordmark />
         </Link>
