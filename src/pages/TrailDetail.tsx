@@ -154,7 +154,7 @@ function TrailAndCheckpointSection({
   }, [selectedTrail]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col gap-6">
+    <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col h-full">
       {/* Step 1: Select Trail */}
       <div>
         <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-1">
@@ -168,16 +168,7 @@ function TrailAndCheckpointSection({
         {loadingTrails ? (
           <p className="text-sm text-gray-500 mt-3">Loading mountain trails…</p>
         ) : (
-          <div
-            className={`grid gap-3 mt-4 ${trails.length === 1
-              ? 'grid-cols-1 max-w-sm'
-              : trails.length === 2
-                ? 'grid-cols-1 sm:grid-cols-2'
-                : trails.length === 3
-                  ? 'grid-cols-1 sm:grid-cols-3'
-                  : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-              }`}
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
             {trails.map((t) => {
               const isSelected = selectedTrail?.waypoint_id === t.waypoint_id;
               return (
@@ -185,10 +176,11 @@ function TrailAndCheckpointSection({
                   type="button"
                   key={t.waypoint_id}
                   onClick={() => onSelectTrail(t)}
-                  className={`p-3.5 text-left rounded-xl border transition-all ${isSelected
-                    ? 'border-primary ring-2 ring-primary/20 bg-primary/10 font-bold text-primary'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
+                  className={`p-3.5 text-left rounded-xl border transition-all ${
+                    isSelected
+                      ? 'border-primary ring-2 ring-primary/20 bg-primary/10 font-bold text-primary'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
                 >
                   <div className="text-base font-semibold">{t.name}</div>
                   <div className="text-xs text-gray-500 mt-1">
@@ -201,10 +193,10 @@ function TrailAndCheckpointSection({
         )}
       </div>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 my-6" />
 
       {/* Step 2: Select Checkpoint inside chosen trail */}
-      <div>
+      <div className="flex flex-col flex-1 min-h-0">
         <h3 className="flex items-center gap-2 text-xl font-semibold text-gray-800 mb-1">
           <span aria-hidden="true" className="material-symbols-outlined">
             location_on
@@ -215,7 +207,7 @@ function TrailAndCheckpointSection({
         {loadingCheckpoints && <p className="text-sm text-gray-500 mt-2">Loading checkpoints…</p>}
 
         {!loadingCheckpoints && checkpoints.length > 0 && (
-          <ol className="flex flex-col gap-3 mt-3">
+          <ol className="flex flex-col gap-3 mt-3 overflow-y-auto pr-1 flex-1">
             {checkpoints.map((cp) => {
               const isSelected = selectedCheckpoint?.checkpoint_id === cp.checkpoint_id;
 
@@ -223,10 +215,11 @@ function TrailAndCheckpointSection({
                 <li
                   key={cp.checkpoint_id}
                   onClick={() => onSelectCheckpoint(cp)}
-                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${isSelected
-                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
-                    : 'border-gray-200/80 bg-white hover:border-gray-300'
-                    }`}
+                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
+                      : 'border-gray-200/80 bg-white hover:border-gray-300'
+                  }`}
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                     {cp.sequence_order}
@@ -254,7 +247,6 @@ function TrailAndCheckpointSection({
     </div>
   );
 }
-
 function SavePlanSection({
   mountainId,
   date,
@@ -274,8 +266,18 @@ function SavePlanSection({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Compute 2-week limit boundaries
+  const today = new Date();
+  const maxDateObj = new Date();
+  maxDateObj.setDate(today.getDate() + 14);
+  const maxDateStr = maxDateObj.toISOString().slice(0, 10);
+  const minDateStr = today.toISOString().slice(0, 10);
+
+  // Check if selected date exceeds 2-week window
+  const isBeyondTwoWeeks = date ? date > maxDateStr : false;
+
   useEffect(() => {
-    if (!date || !selectedTrail || !user) {
+    if (!date || !selectedTrail || !user || isBeyondTwoWeeks) {
       setWeather(null);
       return;
     }
@@ -296,7 +298,7 @@ function SavePlanSection({
     return () => {
       cancelled = true;
     };
-  }, [mountainId, date, selectedTrail, user]);
+  }, [mountainId, date, selectedTrail, user, isBeyondTwoWeeks]);
 
   async function handleSave() {
     if (!selectedTrail) return;
@@ -312,7 +314,7 @@ function SavePlanSection({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
+    <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col h-full">
       <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-4">
         <span aria-hidden="true" className="material-symbols-outlined">
           calendar_month
@@ -325,69 +327,144 @@ function SavePlanSection({
           ⚠️ Please select a trail above before picking a date.
         </p>
       ) : (
-        <>
-          <div className="mb-4 text-sm font-medium text-primary bg-primary/10 p-3 rounded-lg inline-block">
-            Selected Trail: <span className="font-bold">{selectedTrail.name}</span>
-            {selectedCheckpoint && (
-              <span> • Checkpoint: <strong>{selectedCheckpoint.name}</strong></span>
-            )}
-          </div>
-
-          <label className="flex flex-col gap-1 max-w-xs">
-            <span className="text-sm font-semibold text-gray-600">Hiking date</span>
-            <input
-              type="date"
-              value={date}
-              min={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => {
-                onDateChange(e.target.value);
-                setSaveStatus('idle');
-              }}
-              className="rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-            />
-          </label>
-
-          <div className="mt-4">
-            {!user && (
-              <p className="text-gray-600 text-sm">
-                <Link to="/login" className="text-primary font-semibold hover:underline">
-                  Log in
-                </Link>{' '}
-                to check the weather forecast for this date.
-              </p>
-            )}
-            {user && checkingWeather && <p className="text-gray-500 text-sm">Checking conditions for this date…</p>}
-            {user && !checkingWeather && weather?.forecast && (
-              <div className="flex flex-wrap gap-4 rounded-lg bg-surface-container-low p-4 text-sm">
-                <span>🌡️ {weather.forecast.temperature}°C</span>
-                <span>💧 {weather.forecast.humidity}% humidity</span>
-                <span>💨 {weather.forecast.wind_speed} km/h wind</span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch flex-1">
+          {/* Left Column: Input Form & Save Control */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
+            <div className="flex flex-col gap-4">
+              <div className="text-sm font-medium text-primary bg-primary/10 p-3 rounded-lg flex flex-col gap-1">
+                <div>
+                  Selected Trail: <span className="font-bold">{selectedTrail.name}</span>
+                </div>
+                {selectedCheckpoint && (
+                  <div>
+                    Selected Checkpoint: <span className="font-bold">{selectedCheckpoint.name}</span>
+                  </div>
+                )}
               </div>
-            )}
+
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-semibold text-gray-700">Hiking date</span>
+                <input
+                  type="date"
+                  value={date}
+                  min={minDateStr}
+                  onChange={(e) => {
+                    onDateChange(e.target.value);
+                    setSaveStatus('idle');
+                  }}
+                  className="rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none w-full"
+                />
+              </label>
+            </div>
+
+            <div className="pt-4">
+              {!user && (
+                <p className="text-gray-600 text-xs mb-2">
+                  <Link to="/login" className="text-primary font-semibold hover:underline">
+                    Log in
+                  </Link>{' '}
+                  to check the forecast for this date.
+                </p>
+              )}
+              {user && saveStatus === 'saved' && (
+                <p className="text-primary font-semibold text-xs mb-2">
+                  Plan saved!{' '}
+                  <Link to="/plans" className="underline">
+                    View my plans
+                  </Link>
+                </p>
+              )}
+              {user && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saveStatus === 'saving' || saveStatus === 'saved' || !date}
+                  className="w-full rounded-xl bg-primary px-4 py-2.5 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+                >
+                  {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved Plan' : 'Save Plan'}
+                </button>
+              )}
+              {saveError && <p className="text-red-600 text-xs mt-1.5">{saveError}</p>}
+            </div>
           </div>
 
-          <div className="mt-4">
-            {user && saveStatus === 'saved' && (
-              <p className="text-primary font-semibold text-sm">
-                Plan saved!{' '}
-                <Link to="/plans" className="underline">
-                  View my plans
-                </Link>
-              </p>
-            )}
-            {user && saveStatus !== 'saved' && (
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saveStatus === 'saving' || !date}
-                className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
-              >
-                {saveStatus === 'saving' ? 'Saving…' : 'Save Plan'}
-              </button>
-            )}
-            {saveError && <p className="text-red-600 text-sm mt-2">{saveError}</p>}
+          {/* Right Column: Weather Metrics & Warnings */}
+          <div className="lg:col-span-7 bg-surface-container-low border border-gray-200/80 rounded-xl p-5 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3 border-b border-gray-200 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-base">schedule</span>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                  Weather Conditions Preview
+                </h3>
+              </div>
+              <span className="text-xs font-semibold bg-white px-2 py-0.5 rounded-md border border-gray-200 text-gray-600 shadow-xs">
+                {date ? date : 'No Date Selected'}
+              </span>
+            </div>
+
+            <div className="flex flex-col justify-center my-auto py-1">
+              {!user ? (
+                <div className="py-3 text-center">
+                  <p className="text-xs text-gray-500">Log in to view detailed weather forecasts.</p>
+                </div>
+              ) : isBeyondTwoWeeks ? (
+                <div className="py-2 text-center px-2">
+                  <p className="text-xs text-amber-800 font-medium">
+                    Plan can be saved, but weather forecasts are only available within a 14-day window.
+                  </p>
+                </div>
+              ) : checkingWeather ? (
+                <div className="flex items-center justify-center gap-2 text-gray-500 py-3 text-xs">
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  Querying weather metrics...
+                </div>
+              ) : weather?.forecast ? (
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
+                    <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                      <span className="material-symbols-outlined text-amber-500 text-xs">thermostat</span>
+                      Temp
+                    </span>
+                    <span className="text-xl font-bold text-gray-800 mt-1">
+                      {weather.forecast.temperature}<span className="text-xs font-normal text-gray-500">°C</span>
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
+                    <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                      <span className="material-symbols-outlined text-blue-500 text-xs">humidity_percentage</span>
+                      Humidity
+                    </span>
+                    <span className="text-xl font-bold text-gray-800 mt-1">
+                      {weather.forecast.humidity}<span className="text-xs font-normal text-gray-500">%</span>
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
+                    <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                      <span className="material-symbols-outlined text-teal-500 text-xs">air</span>
+                      Wind
+                    </span>
+                    <span className="text-xl font-bold text-gray-800 mt-1">
+                      {weather.forecast.wind_speed} <span className="text-[10px] font-normal text-gray-500">km/h</span>
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-3 text-center">
+                  <p className="text-xs text-gray-500">
+                    {date ? 'No metrics available for this particular date.' : 'Select a target date to preview metrics.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2.5 mt-2 border-t border-gray-200/60 flex items-center justify-between text-[11px] text-gray-400">
+              <span>Forecasts available up to 2 weeks ahead.</span>
+              
+            </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -616,62 +693,75 @@ export default function TrailDetail() {
               <p className="leading-8 text-gray-700">{mountain.description}</p>
             </section>
 
-            {/* Leaflet Trail Map */}
-            <TrailMap
-              checkpoints={checkpoints}
-              selectedCheckpoint={selectedCheckpoint}
-              onSelectCheckpoint={setSelectedCheckpoint}
-            />
+            {/* DUAL LAYOUT: Left map matches right trail panel height */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+              
+              {/* Left Column: Interactive Map wrapped to fill the height */}
+              <div className="lg:col-span-6 lg:sticky lg:top-24 flex flex-col h-[650px]">
+                <div className="bg-white rounded-xl shadow-sm p-4 flex flex-col h-full [&>div]:flex-1">
+                  <TrailMap
+                    checkpoints={checkpoints}
+                    selectedCheckpoint={selectedCheckpoint}
+                    onSelectCheckpoint={setSelectedCheckpoint}
+                  />
+                </div>
+              </div>
 
-            {/* Step 1 & 2: Select Trail then Checkpoint */}
-            <TrailAndCheckpointSection
-              mountainId={mountain.mountain_id}
-              selectedTrail={selectedTrail}
-              onSelectTrail={setSelectedTrail}
-              selectedCheckpoint={selectedCheckpoint}
-              onSelectCheckpoint={setSelectedCheckpoint}
-              onCheckpointsLoaded={setCheckpoints}
-            />
-
-            {/* Step 3: Date Selection & Save Plan */}
-            <SavePlanSection
-              mountainId={mountain.mountain_id}
-              date={date}
-              onDateChange={setDate}
-              selectedTrail={selectedTrail}
-              selectedCheckpoint={selectedCheckpoint}
-            />
-
-            {/* AI Optimization Card */}
-            <RouteOptimizationSection
-              mountainId={mountain.mountain_id}
-              selectedTrail={selectedTrail}
-              date={date}
-            />
-
-            {/* AI Difficulty & Safety Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <AIAnalysisCard
-                title="AI Trail Difficulty Analysis"
-                icon="fitness_center"
-                buttonLabel="Analyze Difficulty"
-                disabled={!!difficultyDisabledReason}
-                disabledHint={difficultyDisabledReason}
-                fetcher={() => fetchDifficultyAnalysis(mountain.mountain_id)}
-              />
-
-              <AIAnalysisCard
-                title="AI Safety Advisory"
-                icon="shield"
-                buttonLabel="Check Safety"
-                disabled={!!safetyDisabledReason}
-                disabledHint={safetyDisabledReason}
-                fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, date)}
-              />
+              {/* Right Column: Trail & Checkpoint Selection Section */}
+              <div className="lg:col-span-6 flex flex-col h-[650px]">
+                <TrailAndCheckpointSection
+                  mountainId={mountain.mountain_id}
+                  selectedTrail={selectedTrail}
+                  onSelectTrail={setSelectedTrail}
+                  selectedCheckpoint={selectedCheckpoint}
+                  onSelectCheckpoint={setSelectedCheckpoint}
+                  onCheckpointsLoaded={setCheckpoints}
+                />
+              </div>
             </div>
 
-            {/* Trail Reports Section */}
-            <TrailReportsSection mountainId={mountain.mountain_id} selectedTrail={selectedTrail} />
+            {/* SEPARATE BOTTOM SECTIONS: Step 3, AI Cards, & Reports */}
+            <div className="flex flex-col gap-8">
+              {/* Step 3: Date Selection & Save Plan */}
+              <SavePlanSection
+                mountainId={mountain.mountain_id}
+                date={date}
+                onDateChange={setDate}
+                selectedTrail={selectedTrail}
+                selectedCheckpoint={selectedCheckpoint}
+              />
+
+              {/* AI Optimization Card */}
+              <RouteOptimizationSection
+                mountainId={mountain.mountain_id}
+                selectedTrail={selectedTrail}
+                date={date}
+              />
+
+              {/* AI Difficulty & Safety Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <AIAnalysisCard
+                  title="AI Trail Difficulty Analysis"
+                  icon="fitness_center"
+                  buttonLabel="Analyze Difficulty"
+                  disabled={!!difficultyDisabledReason}
+                  disabledHint={difficultyDisabledReason}
+                  fetcher={() => fetchDifficultyAnalysis(mountain.mountain_id)}
+                />
+
+                <AIAnalysisCard
+                  title="AI Safety Advisory"
+                  icon="shield"
+                  buttonLabel="Check Safety"
+                  disabled={!!safetyDisabledReason}
+                  disabledHint={safetyDisabledReason}
+                  fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, date)}
+                />
+              </div>
+
+              {/* Trail Reports Section */}
+              <TrailReportsSection mountainId={mountain.mountain_id} selectedTrail={selectedTrail} />
+            </div>
           </div>
         )}
       </main>

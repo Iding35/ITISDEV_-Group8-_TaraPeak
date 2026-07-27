@@ -33,11 +33,11 @@ function createNumberIcon(number: number, isSelected: boolean) {
   });
 }
 
-function MapRecenter({ center }: { center: [number, number] }) {
+function MapRecenter({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(center, 13, { duration: 1.2 });
-  }, [center, map]);
+    map.setView(center, zoom); // Use setView instead of flyTo on initial load to prevent layout shifts
+  }, [center, zoom, map]);
   return null;
 }
 
@@ -54,6 +54,9 @@ export default function TrailMap({
 }: TrailMapProps) {
   const [routePolyline, setRoutePolyline] = useState<[number, number][]>([]);
   const [loadingRoute, setLoadingRoute] = useState(false);
+
+  // Set your desired initial/recentered zoom level here (e.g., 14 or 15)
+  const initialZoom = 14;
 
   const defaultCenter: [number, number] = selectedCheckpoint
     ? [Number(selectedCheckpoint.latitude), Number(selectedCheckpoint.longitude)]
@@ -90,13 +93,14 @@ export default function TrailMap({
         </div>
       )}
 
-      <MapContainer center={defaultCenter} zoom={13} className="w-full h-full">
+      {/* MapContainer zoom now matches initialZoom perfectly */}
+      <MapContainer center={defaultCenter} zoom={initialZoom} className="w-full h-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <MapRecenter center={defaultCenter} />
+        <MapRecenter center={defaultCenter} zoom={initialZoom} />
 
         {routePolyline.length > 0 && (
           <Polyline

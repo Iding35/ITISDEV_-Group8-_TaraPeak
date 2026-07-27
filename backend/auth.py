@@ -29,6 +29,7 @@ class SignupRequest(BaseModel):
     last_name: str
     email: EmailStr
     password: str
+    hiker_experience: str = "beginner"
 
 
 class LoginRequest(BaseModel):
@@ -88,11 +89,11 @@ def signup(payload: SignupRequest):
     hashed = hash_password(payload.password)
     cursor.execute(
         """
-        INSERT INTO users (first_name, last_name, email, password)
-        VALUES (%s, %s, %s, %s)
-        RETURNING user_id, first_name, last_name, email, role
+        INSERT INTO users (first_name, last_name, email, password, hiker_experience)
+        VALUES (%s, %s, %s, %s, %s)
+        RETURNING user_id, first_name, last_name, email, hiker_experience, role
         """,
-        (payload.first_name, payload.last_name, payload.email, hashed),
+        (payload.first_name, payload.last_name, payload.email, hashed, payload.hiker_experience),
     )
     user = dict(cursor.fetchone())
     conn.commit()

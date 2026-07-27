@@ -17,6 +17,7 @@ export interface User {
   first_name: string;
   last_name: string;
   email: string;
+  hiker_experience: string;
   role: string;
 }
 
@@ -223,6 +224,7 @@ export async function signup(data: {
   last_name: string;
   email: string;
   password: string;
+  hiker_experience: string;
 }): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/auth/signup`, {
     method: 'POST',

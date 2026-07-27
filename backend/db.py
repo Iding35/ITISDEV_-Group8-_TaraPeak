@@ -267,3 +267,31 @@ def save_weather_forecast(mountain_id: int, hiking_date: date, temp: float, hum:
     finally:
         cursor.close()
         conn.close()
+
+def get_user_experience(user_id: int) -> str:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT hiker_experience FROM users WHERE user_id = %s", (user_id,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row[0] if row and row[0] else "Beginner"
+
+
+def get_plan_waypoints(plan_id: int) -> list:
+    """Fetch the custom checkpoints/waypoints chosen for a specific user plan."""
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute(
+        """
+        SELECT w.* FROM route_waypoints w
+        JOIN plan_waypoints pw ON w.waypoint_id = pw.waypoint_id
+        WHERE pw.plan_id = %s
+        ORDER BY w.sequence_order ASC
+        """,
+        (plan_id,),
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [dict(row) for row in rows]

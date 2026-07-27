@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(50) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
+    hiker_experience VARCHAR(50) DEFAULT 'beginner',
     role VARCHAR(50) DEFAULT 'user',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -287,13 +288,13 @@ VALUES
 (3, 11, 2, 'Upper Napo Shelter', 'First day rest stop along the forest ridgeline.', 120.9750, 16.5450, 1850, 'Hard', 8.0, 12.0),
 (3, 11, 3, 'Mount Pulag Summit', 'Approaches the peak from the eastern slope.', 120.8992, 16.5975, 2928, 'Hard', 16.0, 24.0);
 -- USERS
-INSERT INTO users (first_name, last_name, email, password, role) VALUES
-('Alex', 'Rivera', 'alex.rivera@example.com', '$2b$12$U142o1R5v9EYyPQ5eBMtLuflnt/G832bpDLJGN7sjdbMf/At8ZSCu', 'user'),
-('Maria', 'Santos', 'maria.santos@example.com', '$2b$12$EY4bVXmsJ94o5nOTlMB9Ku61aH1ryG7B78a6lQnNb1Sy6OyNpuBua', 'user'),
-('John', 'Doe', 'john.doe@example.com', '$2b$12$XAN4i.zDasHrQ1L5GP.zV.IgBbFzcVb.AnA07picJ8srjSsXMRVnG', 'user'),
-('Elena', 'Cruz', 'elena.cruz@example.com', '$2b$12$ohavHqkSIE7eXgC70vtPbuGZ4.c8Vv/EvHbXjK6jInWXb4x830oum', 'user'),
-('Ramon', 'Reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'user'),
-('Cheska', 'Martinez', 'admin@tarapeak.com', '$2b$12$33zauXWVwEOUUAMYDH.Y.uUQOKa5jaynXXNGeZPOaBnDaWvk2jQCi', 'admin');
+INSERT INTO users (first_name, last_name, email, password, hiker_experience, role) VALUES
+('Alex', 'Rivera', 'alex.rivera@example.com', '$2b$12$U142o1R5v9EYyPQ5eBMtLuflnt/G832bpDLJGN7sjdbMf/At8ZSCu', 'beginner', 'user'),
+('Maria', 'Santos', 'maria.santos@example.com', '$2b$12$EY4bVXmsJ94o5nOTlMB9Ku61aH1ryG7B78a6lQnNb1Sy6OyNpuBua', 'intermediate','user'),
+('John', 'Doe', 'john.doe@example.com', '$2b$12$XAN4i.zDasHrQ1L5GP.zV.IgBbFzcVb.AnA07picJ8srjSsXMRVnG', 'expert', 'user'),
+('Elena', 'Cruz', 'elena.cruz@example.com', '$2b$12$ohavHqkSIE7eXgC70vtPbuGZ4.c8Vv/EvHbXjK6jInWXb4x830oum', 'beginner','user'),
+('Ramon', 'Reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'intermediate', 'user'),
+('Cheska', 'Martinez', 'admin@tarapeak.com', '$2b$12$33zauXWVwEOUUAMYDH.Y.uUQOKa5jaynXXNGeZPOaBnDaWvk2jQCi', 'expert','admin');
 
 UPDATE users SET created_at = '2025-01-15 10:00:00' WHERE email = 'alex.rivera@example.com';
 UPDATE users SET created_at = '2025-04-20 11:30:00' WHERE email = 'maria.santos@example.com';
