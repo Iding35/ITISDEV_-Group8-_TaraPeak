@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
+    username VARCHAR(50) UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     hiker_experience VARCHAR(50) DEFAULT 'beginner',
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS mountains (
     description TEXT,
     image_url VARCHAR(200),
     terrain VARCHAR(100),
+    hazards VARCHAR(300),
     total_hikers INT DEFAULT 0
 );
 
@@ -46,12 +48,24 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
     CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE
 );
 
+-- Saved hike plans. `plans` is the hike_plans table referenced in the specs.
+-- The four ai_* columns persist the AI output that was generated for THIS
+-- plan's exact mountain/trail/date combination, so a saved plan keeps the
+-- advice it was created with even after ai_analysis_cache is refreshed.
 CREATE TABLE IF NOT EXISTS plans (
     plan_id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     mountain_id INT NOT NULL,
     waypoint_id INT NOT NULL,
     date DATE NOT NULL,
+
+    ai_gear_summary TEXT,
+    ai_difficulty_analysis TEXT,
+    ai_safety_analysis TEXT,
+    ai_route_plan TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT plans_fk_users
         FOREIGN KEY (user_id)
@@ -69,9 +83,12 @@ CREATE TABLE IF NOT EXISTS plans (
 CREATE TABLE IF NOT EXISTS gear_recommendations (
     gear_id SERIAL PRIMARY KEY,
     plan_id INT NOT NULL,
-    gear_name VARCHAR(50),
+    gear_name VARCHAR(100),
+    category VARCHAR(50),
+    reason TEXT,
     is_required BOOLEAN DEFAULT TRUE,
-    CONSTRAINT gear_fk_plans FOREIGN KEY (plan_id) REFERENCES plans(plan_id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT gear_fk_plans FOREIGN KEY (plan_id) REFERENCES plans(plan_id) ON DELETE CASCADE
 );
 
 
@@ -87,6 +104,9 @@ CREATE TABLE IF NOT EXISTS trail_reports (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Links users to a hike plan with an invitation status.
+-- `synced_at` is bumped for every member whenever the organizer edits the
+-- plan, so each member record carries proof of the last propagated change.
 CREATE TABLE IF NOT EXISTS plan_members (
     plan_member_id SERIAL PRIMARY KEY,
     plan_id INT NOT NULL REFERENCES plans(plan_id) ON DELETE CASCADE,
@@ -94,8 +114,25 @@ CREATE TABLE IF NOT EXISTS plan_members (
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     invited_by INT REFERENCES users(user_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT plan_members_unique UNIQUE (plan_id, user_id)
+    synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT plan_members_unique UNIQUE (plan_id, user_id),
+    CONSTRAINT plan_members_status_check CHECK (status IN ('pending', 'accepted', 'declined'))
 );
+
+-- In-app alerts surfaced on the dashboard: invitations received, invitation
+-- responses, plan edits propagated to members, and removals.
+CREATE TABLE IF NOT EXISTS notifications (
+    notification_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    title VARCHAR(120) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(30) NOT NULL,
+    reference_id INT,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications (user_id, is_read, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS ai_analysis_cache (
     cache_id SERIAL PRIMARY KEY,
@@ -155,10 +192,10 @@ EXECUTE FUNCTION sync_mountain_total_hikers();
 -- ==========================================================
 
 -- MOUNTAINS
-INSERT INTO mountains (mountain_name, location, description, image_url, terrain, total_hikers) VALUES
-('Mount Ulap', 'Itogon, Benguet', 'A beginner-friendly mountain known for its pine forests, scenic grasslands, and panoramic ridge views.', 'img/mt-ulap.svg', 'Pine Forest', 0),
-('Mount Yangbew', 'La Trinidad, Benguet', 'A short hiking destination famous for its sunrise views, rock formations, and colorful flower gardens.', 'img/mt-yangbew.svg', 'Grassland', 0),
-('Mount Pulag', 'Kabayan, Benguet', 'The third highest mountain in the Philippines, renowned for its sea of clouds, mossy forests, and breathtaking sunrise.', 'img/mt-pulag.svg', 'Mossy Forest', 0);
+INSERT INTO mountains (mountain_name, location, description, image_url, terrain, hazards, total_hikers) VALUES
+('Mount Ulap', 'Itogon, Benguet', 'A beginner-friendly mountain known for its pine forests, scenic grasslands, and panoramic ridge views.', 'img/mt-ulap.svg', 'Pine Forest', 'Exposed ridgelines with no shade, slippery clay when wet, steep drop-offs near Gungal Rock, limited water sources along the traverse.', 0),
+('Mount Yangbew', 'La Trinidad, Benguet', 'A short hiking destination famous for its sunrise views, rock formations, and colorful flower gardens.', 'img/mt-yangbew.svg', 'Grassland', 'Loose rock near the formations, strong crosswinds on the open plateau, sun exposure with almost no tree cover, crowding at sunrise.', 0),
+('Mount Pulag', 'Kabayan, Benguet', 'The third highest mountain in the Philippines, renowned for its sea of clouds, mossy forests, and breathtaking sunrise.', 'img/mt-pulag.svg', 'Mossy Forest', 'Hypothermia risk from near-freezing summit temperatures, altitude sickness above 2,500 m, dense fog with low visibility, slippery mossy roots, long emergency evacuation times.', 0);
 
 -- WEATHER FORECASTS
 INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed) VALUES
@@ -288,13 +325,13 @@ VALUES
 (3, 11, 2, 'Upper Napo Shelter', 'First day rest stop along the forest ridgeline.', 120.9750, 16.5450, 1850, 'Hard', 8.0, 12.0),
 (3, 11, 3, 'Mount Pulag Summit', 'Approaches the peak from the eastern slope.', 120.8992, 16.5975, 2928, 'Hard', 16.0, 24.0);
 -- USERS
-INSERT INTO users (first_name, last_name, email, password, hiker_experience, role) VALUES
-('Alex', 'Rivera', 'alex.rivera@example.com', '$2b$12$U142o1R5v9EYyPQ5eBMtLuflnt/G832bpDLJGN7sjdbMf/At8ZSCu', 'beginner', 'user'),
-('Maria', 'Santos', 'maria.santos@example.com', '$2b$12$EY4bVXmsJ94o5nOTlMB9Ku61aH1ryG7B78a6lQnNb1Sy6OyNpuBua', 'intermediate','user'),
-('John', 'Doe', 'john.doe@example.com', '$2b$12$XAN4i.zDasHrQ1L5GP.zV.IgBbFzcVb.AnA07picJ8srjSsXMRVnG', 'expert', 'user'),
-('Elena', 'Cruz', 'elena.cruz@example.com', '$2b$12$ohavHqkSIE7eXgC70vtPbuGZ4.c8Vv/EvHbXjK6jInWXb4x830oum', 'beginner','user'),
-('Ramon', 'Reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'intermediate', 'user'),
-('Cheska', 'Martinez', 'admin@tarapeak.com', '$2b$12$33zauXWVwEOUUAMYDH.Y.uUQOKa5jaynXXNGeZPOaBnDaWvk2jQCi', 'expert','admin');
+INSERT INTO users (first_name, last_name, username, email, password, hiker_experience, role) VALUES
+('Alex', 'Rivera', 'alex.rivera', 'alex.rivera@example.com', '$2b$12$U142o1R5v9EYyPQ5eBMtLuflnt/G832bpDLJGN7sjdbMf/At8ZSCu', 'beginner', 'user'),
+('Maria', 'Santos', 'maria.santos', 'maria.santos@example.com', '$2b$12$EY4bVXmsJ94o5nOTlMB9Ku61aH1ryG7B78a6lQnNb1Sy6OyNpuBua', 'intermediate','user'),
+('John', 'Doe', 'john.doe', 'john.doe@example.com', '$2b$12$XAN4i.zDasHrQ1L5GP.zV.IgBbFzcVb.AnA07picJ8srjSsXMRVnG', 'expert', 'user'),
+('Elena', 'Cruz', 'elena.cruz', 'elena.cruz@example.com', '$2b$12$ohavHqkSIE7eXgC70vtPbuGZ4.c8Vv/EvHbXjK6jInWXb4x830oum', 'beginner','user'),
+('Ramon', 'Reyes', 'ramon.reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'intermediate', 'user'),
+('Cheska', 'Martinez', 'admin', 'admin@tarapeak.com', '$2b$12$33zauXWVwEOUUAMYDH.Y.uUQOKa5jaynXXNGeZPOaBnDaWvk2jQCi', 'expert','admin');
 
 UPDATE users SET created_at = '2025-01-15 10:00:00' WHERE email = 'alex.rivera@example.com';
 UPDATE users SET created_at = '2025-04-20 11:30:00' WHERE email = 'maria.santos@example.com';
