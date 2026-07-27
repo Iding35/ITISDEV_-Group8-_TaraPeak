@@ -1,5 +1,10 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { fetchNotifications } from '../api';
 import { useAuth } from '../context/AuthContext';
+
+/** Keeps the bell badge roughly in step with the dashboard's own polling. */
+const UNREAD_POLL_MS = 30_000;
 
 function MountainWordmark() {
   return (
@@ -45,6 +50,34 @@ function NavLink({ to, label }: { to: string; label: string }) {
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    function loadUnread() {
+      fetchNotifications()
+        .then((feed) => {
+          if (!cancelled) setUnreadCount(feed.unread_count);
+        })
+        .catch(() => {
+          // Badge is non-critical; leave the last known count in place.
+        });
+    }
+
+    loadUnread();
+    const timer = setInterval(loadUnread, UNREAD_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [user]);
 
   function handleLogout() {
     logout();
@@ -64,17 +97,32 @@ export default function Navbar() {
           <nav className="hidden md:flex items-center gap-md">
             <NavLink to="/" label="Explore" />
             <NavLink to="/dashboard" label="Dashboard" />
+            <NavLink to="/planner" label="Plan a Hike" />
             <NavLink to="/plans" label="Plans" />
           </nav>
         </div>
         <div className="flex items-center gap-md">
           <div className="flex items-center gap-sm">
-            <span
-              aria-hidden="true"
-              className="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors"
-            >
-              notifications
-            </span>
+            {user && (
+              <Link
+                to="/dashboard"
+                aria-label={
+                  unreadCount > 0
+                    ? `Notifications, ${unreadCount} unread`
+                    : 'Notifications'
+                }
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:text-primary"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined">
+                  notifications
+                </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-on-primary">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            )}
             {user ? (
               <div className="flex items-center gap-sm">
                 <span className="hidden sm:inline font-label-md text-label-md text-on-surface-variant">

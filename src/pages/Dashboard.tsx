@@ -1,12 +1,20 @@
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Navbar from "../components/Navbar";    
+import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
 import {
+  acceptPlanInvite,
   createTrailReport,
+  declinePlanInvite,
   fetchMountains,
+  fetchNotifications,
+  fetchPlanInvites,
   fetchWaypoints,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type AppNotification,
   type Mountain,
+  type PlanInvite,
   type Waypoint,
 } from "../api";
 
@@ -21,6 +29,37 @@ const CONDITIONS = [
   "Very Crowded",
   "Dry & Dusty",
 ];
+
+/** How often the dashboard re-polls for new alerts while the tab is open. */
+const NOTIFICATION_POLL_MS = 30_000;
+
+const NOTIFICATION_ICONS: Record<string, string> = {
+  invite_received: "person_add",
+  invite_accepted: "check_circle",
+  invite_declined: "cancel",
+  plan_updated: "sync",
+  member_removed: "person_remove",
+};
+
+function formatPlanDate(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatRelative(timestamp: string): string {
+  const then = new Date(timestamp).getTime();
+  if (Number.isNaN(then)) return "";
+
+  const diffMinutes = Math.round((Date.now() - then) / 60000);
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffMinutes < 1440) return `${Math.round(diffMinutes / 60)}h ago`;
+  return `${Math.round(diffMinutes / 1440)}d ago`;
+}
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -41,6 +80,80 @@ export default function Dashboard() {
   const [showTrailReport, setShowTrailReport] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [invites, setInvites] = useState<PlanInvite[]>([]);
+  const [respondingId, setRespondingId] = useState<number | null>(null);
+
+  // Alerts land on login and keep refreshing while the dashboard is open.
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+
+    async function loadAlerts() {
+      try {
+        const [feed, pending] = await Promise.all([fetchNotifications(), fetchPlanInvites()]);
+        if (cancelled) return;
+        setNotifications(feed.notifications);
+        setUnreadCount(feed.unread_count);
+        setInvites(pending);
+      } catch {
+        // A failed poll should not tear down the dashboard.
+      }
+    }
+
+    loadAlerts();
+    const timer = setInterval(loadAlerts, NOTIFICATION_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [user]);
+
+  async function handleAcceptInvite(planMemberId: number) {
+    setRespondingId(planMemberId);
+    try {
+      await acceptPlanInvite(planMemberId);
+      setInvites((current) => current.filter((i) => i.plan_member_id !== planMemberId));
+    } finally {
+      setRespondingId(null);
+    }
+  }
+
+  async function handleDeclineInvite(planMemberId: number) {
+    setRespondingId(planMemberId);
+    try {
+      await declinePlanInvite(planMemberId);
+      setInvites((current) => current.filter((i) => i.plan_member_id !== planMemberId));
+    } finally {
+      setRespondingId(null);
+    }
+  }
+
+  async function handleDismissNotification(notificationId: number) {
+    setNotifications((current) =>
+      current.map((n) => (n.notification_id === notificationId ? { ...n, is_read: true } : n))
+    );
+    setUnreadCount((count) => Math.max(0, count - 1));
+    try {
+      await markNotificationRead(notificationId);
+    } catch {
+      // Optimistic update stands; the next poll reconciles.
+    }
+  }
+
+  async function handleMarkAllRead() {
+    setNotifications((current) => current.map((n) => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+    try {
+      await markAllNotificationsRead();
+    } catch {
+      // Same as above.
+    }
+  }
 
   useEffect(() => {
     async function loadMountains() {
@@ -173,6 +286,133 @@ export default function Dashboard() {
             experience to help fellow hikers.
           </p>
         </div>
+
+        {/* Pending group invitations */}
+        {invites.length > 0 && (
+          <section className="max-w-3xl mb-6">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-primary mb-3">
+              <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
+                group_add
+              </span>
+              Pending Invitations ({invites.length})
+            </h2>
+
+            <div className="flex flex-col gap-3">
+              {invites.map((invite) => (
+                <div
+                  key={invite.plan_member_id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4"
+                >
+                  <p className="text-sm text-gray-700">
+                    <span className="font-semibold">{invite.invited_by_name || "Someone"}</span>{" "}
+                    invited you to <span className="font-semibold">{invite.mountain_name}</span> on{" "}
+                    {formatPlanDate(invite.date)}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleAcceptInvite(invite.plan_member_id)}
+                      disabled={respondingId === invite.plan_member_id}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeclineInvite(invite.plan_member_id)}
+                      disabled={respondingId === invite.plan_member_id}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-600 disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Activity alerts */}
+        {notifications.length > 0 && (
+          <section className="max-w-3xl mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
+                  notifications
+                </span>
+                Activity
+                {unreadCount > 0 && (
+                  <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </h2>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleMarkAllRead}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            <ul className="flex flex-col gap-2">
+              {notifications.map((notification) => (
+                <li
+                  key={notification.notification_id}
+                  className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${
+                    notification.is_read
+                      ? "border-gray-200 bg-white"
+                      : "border-primary/30 bg-primary/5"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined text-primary text-[20px] shrink-0"
+                  >
+                    {NOTIFICATION_ICONS[notification.type] ?? "notifications"}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-gray-900 text-sm">{notification.title}</p>
+                      {!notification.is_read && (
+                        <span className="h-2 w-2 rounded-full bg-primary" aria-label="Unread" />
+                      )}
+                      <span className="text-xs text-gray-400">
+                        {formatRelative(notification.created_at)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-0.5">{notification.message}</p>
+                    {notification.reference_id && (
+                      <Link
+                        to={`/plans/${notification.reference_id}`}
+                        className="mt-1 inline-block text-xs font-semibold text-primary hover:underline"
+                      >
+                        View plan
+                      </Link>
+                    )}
+                  </div>
+
+                  {!notification.is_read && (
+                    <button
+                      type="button"
+                      onClick={() => handleDismissNotification(notification.notification_id)}
+                      aria-label={`Mark "${notification.title}" as read`}
+                      className="text-gray-400 hover:text-primary transition-colors p-1"
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                        done
+                      </span>
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="max-w-3xl">
 
