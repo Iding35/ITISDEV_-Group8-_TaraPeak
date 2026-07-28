@@ -52,6 +52,9 @@ export interface Plan {
   distance_from_start_km: number;
   terrain: string;
   hazards: string | null;
+  status?: string;
+  checkpoint_id?: number;      
+  checkpoint_name?: string; 
 }
 
 export interface GearItem {
@@ -311,6 +314,7 @@ export async function createPlan(
   mountainId: number,
   waypointId: number,
   hikingDate: string,
+  checkpointId?: number,
   aiOutputs: SavePlanAiOutputs = {}
 ): Promise<Plan> {
   const response = await fetch(`${API_URL}/plans/save`, {
@@ -323,12 +327,35 @@ export async function createPlan(
       mountain_id: mountainId,
       waypoint_id: waypointId,
       date: hikingDate,
+      checkpoint_id: checkpointId,
       ...aiOutputs,
     }),
   });
 
   if (!response.ok) {
     throw await extractError(response, 'Could not save plan');
+  }
+
+  return response.json();
+}
+
+export async function updatePlanNotes(
+  planId: number,
+  notes: string
+): Promise<DetailedPlan> {
+  const response = await fetch(`${API_URL}/plans/${planId}/notes`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      notes,
+    }),
+  });
+
+  if (!response.ok) {
+    throw await extractError(response, 'Could not update notes');
   }
 
   return response.json();
@@ -397,8 +424,8 @@ export async function fetchPlanDetail(planId: number): Promise<DetailedPlan> {
   return response.json();
 }
 
-export async function removePlanMember(planMemberId: number): Promise<void> {
-  const response = await fetch(`${API_URL}/plan-members/${planMemberId}`, {
+export async function removePlanMember(planId: number, planMemberId: number): Promise<void> {
+  const response = await fetch(`${API_URL}/plans/${planId}/members/${planMemberId}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });

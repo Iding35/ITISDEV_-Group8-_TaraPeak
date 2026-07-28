@@ -3,12 +3,15 @@ import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import {
   fetchPlanDetail,
   fetchWaypoints,
+  fetchTrailCheckpoints,
   invitePlanMember,
   regeneratePlanGear,
   removePlanMember,
   updatePlan,
+  updatePlanNotes,
   type DetailedPlan,
   type Waypoint,
+  type TrailCheckpoint,
 } from '../api';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
@@ -229,25 +232,54 @@ export default function PlanDetail() {
   const [banner, setBanner] = useState<string | null>(null);
   const [gearStatus, setGearStatus] = useState<'idle' | 'loading'>('idle');
 
-  function loadPlan() {
+  const [checkpoints, setCheckpoints] = useState<TrailCheckpoint[]>([]);
+  const [notes, setNotes] = useState('');
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
+
+  function loadPlan(preserveNotes = false) {
     if (!id) return Promise.resolve();
     return fetchPlanDetail(Number(id))
-      .then(setPlan)
+      .then(async (planData) => {
+        setPlan(planData);
+
+        if (!preserveNotes) {
+          setNotes((planData as any).notes || '');
+        }
+
+        try {
+          const waypoints = await fetchWaypoints(planData.mountain_id);
+          const targetWaypoint = waypoints.find(w => w.waypoint_id === planData.waypoint_id) || waypoints[0];
+          if (targetWaypoint) {
+            const trailCps = await fetchTrailCheckpoints(targetWaypoint.waypoint_id);
+            const selectedCpId = planData.checkpoint_id;
+            const filteredCps = selectedCpId 
+              ? trailCps.filter(cp => cp.checkpoint_id <= selectedCpId || cp.sequence_order <= (trailCps.find(c => c.checkpoint_id === selectedCpId)?.sequence_order || 99))
+              : trailCps;
+            setCheckpoints(filteredCps.length ? filteredCps : trailCps);
+          }
+        } catch {
+          setCheckpoints([]);
+        }
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'Plan not found'));
   }
 
   useEffect(() => {
     if (!id) return;
-    loadPlan().finally(() => setIsLoading(false));
+    loadPlan(false).finally(() => setIsLoading(false));
   }, [id]);
 
   async function handleRemoveMember(planMemberId: number) {
+    if (!plan) return; 
+    
     if (
       !confirm('Are you sure you want to remove this member? Their access will be revoked immediately.')
     )
       return;
     try {
-      await removePlanMember(planMemberId);
+      await removePlanMember(plan.plan_id, planMemberId);
       setPlan((prev) =>
         prev
           ? { ...prev, members: prev.members.filter((m) => m.plan_member_id !== planMemberId) }
@@ -258,7 +290,6 @@ export default function PlanDetail() {
       setBanner('Could not remove member.');
     }
   }
-
   async function handleRegenerateGear() {
     if (!plan) return;
     setGearStatus('loading');
@@ -271,6 +302,22 @@ export default function PlanDetail() {
       setBanner(err instanceof Error ? err.message : 'Could not regenerate gear');
     } finally {
       setGearStatus('idle');
+    }
+  }
+
+  async function handleSaveNotes() {
+    if (!plan) return;
+    setIsSavingNotes(true);
+    setNotesError(null);
+    try {
+      if (typeof updatePlanNotes === 'function') {
+        await updatePlanNotes(plan.plan_id, notes);
+      }
+      setIsEditingNotes(false);
+    } catch (err) {
+      setNotesError(err instanceof Error ? err.message : 'Failed to save notes');
+    } finally {
+      setIsSavingNotes(false);
     }
   }
 
@@ -307,6 +354,9 @@ export default function PlanDetail() {
 
   const requiredGear = plan.gear?.filter((g) => g.is_required) ?? [];
   const optionalGear = plan.gear?.filter((g) => !g.is_required) ?? [];
+
+  const selectedCheckpointData = checkpoints.find(cp => cp.checkpoint_id === plan.checkpoint_id);
+  const targetDistance = selectedCheckpointData?.distance_from_start_km ?? plan.distance_from_start_km;
 
   return (
     <div className="min-h-screen bg-surface text-on-surface">
@@ -367,7 +417,7 @@ export default function PlanDetail() {
                     <strong>Terrain:</strong> {plan.terrain}
                   </p>
                   <p>
-                    <strong>Distance:</strong> {plan.distance_from_start_km} km
+                    <strong>Distance:</strong> {targetDistance} km
                   </p>
                 </div>
 
@@ -402,13 +452,70 @@ export default function PlanDetail() {
                       ? `Plan updated. ${synced} member${synced === 1 ? '' : 's'} synced and notified.`
                       : 'Plan updated.'
                   );
-                  loadPlan();
+                  loadPlan(true);
                 }}
               />
             )}
 
+
+            {/* --- Organizer Notes / Announcements Board --- */}
+            <section className="border-t border-secondary/10 pt-6">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="font-headline-md text-primary">Announcement Board</h2>
+                {plan.is_owner && (
+                  <button
+                    onClick={() => {
+                      if (isEditingNotes) {
+                        handleSaveNotes();
+                      } else {
+                        setIsEditingNotes(true);
+                      }
+                    }}
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    {isEditingNotes ? (isSavingNotes ? 'Saving...' : 'Save Notes') : 'Edit Announcements'}
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-on-surface-variant mb-3">Important updates or reminders posted by the organizer for all members.</p>
+
+              {notesError && <p className="text-error text-xs mb-2">{notesError}</p>}
+
+              {isEditingNotes ? (
+                <div className="flex flex-col gap-2">
+                  <textarea
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Write announcements for members here..."
+                    className="w-full rounded-xl border border-secondary/20 p-3 text-sm outline-none focus:ring-2 focus:ring-primary bg-surface text-on-surface"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => setIsEditingNotes(false)}
+                      disabled={isSavingNotes}
+                      className="rounded-lg bg-surface-container-high px-3 py-1.5 text-xs font-semibold text-on-surface hover:bg-surface-container-highest"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveNotes}
+                      disabled={isSavingNotes}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-on-primary disabled:opacity-50"
+                    >
+                      {isSavingNotes ? 'Updating...' : 'Update Board'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50/50 border border-amber-200/60 p-4 rounded-xl text-sm text-amber-900 whitespace-pre-wrap">
+                  {notes || 'No announcements posted yet by the organizer.'}
+                </div>
+              )}
+            </section>
+
             {/* Gear */}
-            <section>
+            <section className="border-t border-secondary/10 pt-6">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h2 className="font-headline-md text-primary">
                   Gear Checklist ({plan.gear?.length ?? 0})
@@ -426,8 +533,8 @@ export default function PlanDetail() {
                     {gearStatus === 'loading'
                       ? 'Generating…'
                       : plan.gear?.length
-                        ? 'Regenerate'
-                        : 'Generate gear list'}
+                      ? 'Regenerate'
+                      : 'Generate gear list'}
                   </button>
                 )}
               </div>
@@ -475,14 +582,14 @@ export default function PlanDetail() {
             </section>
 
             {/* Group collaboration */}
-            <section>
+            <section className="border-t border-secondary/10 pt-6">
               <h2 className="font-headline-md text-primary mb-3">
                 Group Members ({plan.members?.length || 0})
               </h2>
 
               {plan.is_owner && (
                 <div className="mb-4 rounded-xl border border-secondary/20 bg-surface-container-lowest p-4">
-                  <InviteMemberForm planId={plan.plan_id} onInvited={loadPlan} />
+                  <InviteMemberForm planId={plan.plan_id} onInvited={() => loadPlan(true)} />
                 </div>
               )}
 
@@ -504,10 +611,10 @@ export default function PlanDetail() {
                             member.role === 'organizer'
                               ? 'bg-primary/10 text-primary'
                               : member.status === 'accepted'
-                                ? 'bg-emerald-500/10 text-emerald-600'
-                                : member.status === 'declined'
-                                  ? 'bg-red-500/10 text-red-600'
-                                  : 'bg-amber-500/10 text-amber-600'
+                              ? 'bg-emerald-500/10 text-emerald-600'
+                              : member.status === 'declined'
+                              ? 'bg-red-500/10 text-red-600'
+                              : 'bg-amber-500/10 text-amber-600'
                           }`}
                         >
                           {member.role === 'organizer'

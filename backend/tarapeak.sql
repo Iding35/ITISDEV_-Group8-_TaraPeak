@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS trail_checkpoints (
     distance_from_start_km DECIMAL(4,1),
     CONSTRAINT checkpoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE,
     CONSTRAINT checkpoint_fk_route_waypoints FOREIGN KEY (route_waypoint_id) REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE
+    
 );
 
 -- Saved hike plans. `plans` is the hike_plans table referenced in the specs.
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS plans (
     user_id INT NOT NULL,
     mountain_id INT NOT NULL,
     waypoint_id INT NOT NULL,
+    checkpoint_id INT NULL, 
     date DATE NOT NULL,
     notes TEXT NULL,
 
@@ -103,7 +105,12 @@ CREATE TABLE IF NOT EXISTS plans (
 
     CONSTRAINT plans_fk_waypoints
         FOREIGN KEY (waypoint_id)
-        REFERENCES route_waypoints(waypoint_id)
+        REFERENCES route_waypoints(waypoint_id),
+
+    CONSTRAINT plans_fk_checkpoints
+        FOREIGN KEY (checkpoint_id)
+        REFERENCES trail_checkpoints(checkpoint_id) 
+        ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS plan_completed_checkpoints (
