@@ -149,6 +149,7 @@ export default function Dashboard() {
   const [loadingTrails, setLoadingTrails] = useState(false);
 
   const [showTrailReport, setShowTrailReport] = useState(false);
+  const [showReportsModal, setShowReportsModal] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -701,74 +702,18 @@ export default function Dashboard() {
           <p className="text-sm text-gray-500">
             View all of the trail reports you've submitted.
           </p>
-
-          {myReports.length === 0 ? (
-          <div className="mt-6 rounded-xl bg-gray-50 border border-gray-200 p-4">
-            <p className="text-sm text-gray-500">
-              No reports submitted yet.
-            </p>
+          
+          <div className="mt-8">
+          
+          <button
+              onClick={() => setShowReportsModal(true)}
+              className="rounded-xl bg-primary text-white px-5 py-3 font-semibold hover:opacity-90 transition"
+            >
+              View Reports
+            </button>
           </div>
-        ) : (
-          <div className="mt-6 space-y-4">
-            {myReports.map((report) => (
-              <div
-                key={report.report_id}
-                className="border border-gray-200 rounded-2xl overflow-hidden"
-              >
-                <img
-                  src={report.image_url}
-                  alt={report.mountain_name}
-                  className="w-full h-32 object-cover"
-                />
-
-                <div className="p-4">
-
-                  <h3 className="font-semibold text-primary text-lg">
-                    {report.mountain_name}
-                  </h3>
-
-                  <p className="text-sm text-gray-500">
-                    {report.trail_name ?? "Unknown Trail"}
-                  </p>
-
-                  <div className="flex items-center gap-2 mt-2">
-                  <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <span
-                      key={index}
-                      className={`material-symbols-outlined text-[18px] ${
-                        index < report.rating
-                          ? "text-amber-500"
-                          : "text-gray-300"
-                      }`}
-                    >
-                      star
-                    </span>
-                  ))}
-                </div>
-
-                    <span className="text-sm text-gray-500">
-                      {report.condition}
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-gray-600 mt-3 line-clamp-2">
-                    {report.comment}
-                  </p>
-
-                  <p className="text-xs text-gray-400 mt-3">
-                    Submitted {new Date(report.created_at).toLocaleDateString()}
-                  </p>
-
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
         </div>
-
-      </div>
+        </div>
 
           {showTrailReport && (
 
@@ -939,6 +884,115 @@ export default function Dashboard() {
         </div>
           )}
         </div>
+
+        {showReportsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
+
+            <div className="flex items-center justify-between border-b p-6">
+
+              <div>
+                <h2 className="text-2xl font-semibold text-primary">
+                  Your Trail Reports
+                </h2>
+
+                <p className="text-sm text-gray-500">
+                  {myReports.length} reports submitted
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowReportsModal(false)}
+                className="material-symbols-outlined text-3xl text-gray-500 hover:text-primary"
+              >
+                close
+              </button>
+
+            </div>
+
+            <div className="overflow-y-auto max-h-[65vh] p-6 space-y-5">
+
+              {myReports.length === 0 ? (
+
+                <p className="text-center text-gray-500">
+                  No reports yet.
+                </p>
+
+              ) : (
+
+                myReports.map((report) => (
+                  <div
+                    key={report.report_id}
+                    className="rounded-2xl border border-gray-200 overflow-hidden"
+                  >
+
+                    <img
+                      src={report.image_url}
+                      alt={report.mountain_name}
+                      className="h-48 w-full object-cover"
+                    />
+
+                    <div className="p-5">
+
+                      <h3 className="text-xl font-semibold text-primary">
+                        {report.mountain_name}
+                      </h3>
+
+                      <p className="text-gray-500">
+                        {report.trail_name}
+                      </p>
+
+                      <div className="flex items-center gap-3 mt-3">
+
+                        <div className="flex">
+                          {Array.from({ length: 5 }).map((_, index) => (
+                            <span
+                              key={index}
+                              className={`material-symbols-outlined text-[20px] ${
+                                index < report.rating
+                                  ? "text-amber-500"
+                                  : "text-gray-300"
+                              }`}
+                            >
+                              star
+                            </span>
+                          ))}
+                        </div>
+
+                        <span className="font-semibold">
+                          {report.rating.toFixed(1)}
+                        </span>
+
+                        <span className="text-gray-300">•</span>
+
+                        <span className="text-gray-600">
+                          {report.condition}
+                        </span>
+
+                      </div>
+
+                      <p className="mt-4 text-gray-700">
+                        {report.comment}
+                      </p>
+
+                      <p className="mt-4 text-sm text-gray-400">
+                        {new Date(report.created_at).toLocaleDateString()}
+                      </p>
+
+                    </div>
+
+                  </div>
+                ))
+
+              )}
+
+            </div>
+
+          </div>
+
+        </div>
+        )}
 
       </main>
     </div>
