@@ -458,6 +458,9 @@ def list_plans(current_user: dict = Depends(get_current_user)):
     p.user_id AS owner_id,
     p.waypoint_id,
     p.updated_at,
+    p.is_completed,          
+    p.completed_at::text,    
+    p.completion_time::text,
 
     m.mountain_id,
     m.mountain_name,
@@ -861,6 +864,10 @@ def get_plan_detail(plan_id: int, current_user: dict = Depends(get_current_user)
             p.ai_safety_analysis,
             p.ai_route_plan,
 
+            p.is_completed,          
+                p.completed_at::text,    
+                p.completion_time::text,
+
             m.mountain_id,
             m.mountain_name,
             m.location,
@@ -1014,7 +1021,63 @@ def remove_plan_member(plan_member_id: int, current_user: dict = Depends(get_cur
 
     return {"message": "Member removed successfully"}
 
+class CompletePlanRequest(BaseModel):
+    completion_date: date
+    completion_time: str
 
+
+@app.patch("/plans/{plan_id}/complete")
+def complete_plan(
+    plan_id: int,
+    payload: CompletePlanRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Mark a hiking plan as completed with the date and duration."""
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        # 1. Verify authorization
+        cursor.execute(
+            """
+            SELECT p.plan_id
+            FROM plans p
+            LEFT JOIN plan_members pm ON pm.plan_id = p.plan_id AND pm.user_id = %s
+            WHERE p.plan_id = %s AND (p.user_id = %s OR pm.user_id = %s)
+            """,
+            (current_user["user_id"], plan_id, current_user["user_id"], current_user["user_id"])
+        )
+        plan = cursor.fetchone()
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan not found or unauthorized")
+
+        # 2. Update plan & cast interval/date to text for JSON serialization
+        cursor.execute(
+            """
+            UPDATE plans
+            SET is_completed = TRUE,
+                completion_time = %s::interval,
+                completed_at = %s::date,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE plan_id = %s
+            RETURNING plan_id, 
+                      is_completed, 
+                      completion_time::text AS completion_time, 
+                      completed_at::text AS completed_at, 
+                      updated_at
+            """,
+            (payload.completion_time, payload.completion_date, plan_id)
+        )
+        updated = dict(cursor.fetchone())
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        # Returns exact database exception details during debugging
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+    return updated
 # ---------------------------------------------------------------------------
 # Notifications
 # ---------------------------------------------------------------------------
@@ -1350,6 +1413,7 @@ class WaypointCoord(BaseModel):
 class ORSRequest(BaseModel):
     waypoints: list[WaypointCoord]
     profile: Optional[str] = "foot-hiking"
+    
 
 
 @app.post("/ors/route")

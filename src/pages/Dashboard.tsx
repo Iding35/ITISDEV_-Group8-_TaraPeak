@@ -367,6 +367,10 @@ export default function Dashboard() {
   if (authLoading) return null;
   if (!user) return <Navigate to="/login" replace />;
 
+  // Filter logic separating active vs completed hikes based on an is_completed flag or similar indicator if present
+  const activePlans = plans.filter((p: any) => !p.is_completed);
+  const completedPlans = plans.filter((p: any) => p.is_completed);
+
   return (
     <div className="min-h-screen bg-surface text-on-surface">
       <Navbar />
@@ -445,23 +449,23 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              {plans.length > 0 && (
+              {activePlans.length > 0 && (
                 <span className="rounded-full bg-primary/10 px-3.5 py-1 text-sm text-primary font-semibold">
-                  {plans.length} {plans.length === 1 ? "Plan" : "Plans"}
+                  {activePlans.length} {activePlans.length === 1 ? "Plan" : "Plans"}
                 </span>
               )}
             </div>
 
-            {plans.length === 0 ? (
+            {activePlans.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-secondary/30 p-12 text-center bg-surface-container-low">
                 <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">hiking</span>
                 <p className="font-body-md text-on-surface-variant">
-                  You don't have any hiking plans yet. Create or join one to get started!
+                  You don't have any active hiking plans yet. Create or join one to get started!
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {plans.map((plan) => {
+                {activePlans.map((plan) => {
                   const otherMembersFirstNames = plan.members
                     .filter((m) => m.user_id !== user.user_id)
                     .map((m) => (m.name ? m.name.split(' ')[0] : ''))
@@ -676,6 +680,100 @@ export default function Dashboard() {
           </div>
 
         </div>
+
+        {/* Line Divider */}
+        <hr className="my-12 border-secondary/20" />
+
+        {/* Completed Hikes Section */}
+        <section className="space-y-6">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h2 className="text-3xl font-bold text-primary flex items-center gap-2">
+                My Completed Hikes
+              </h2>
+              <p className="text-sm text-on-surface-variant mt-1">
+                A historical log of your successfully completed hiking adventures.
+              </p>
+            </div>
+            {completedPlans.length > 0 && (
+              <span className="rounded-full bg-secondary/10 px-3.5 py-1 text-sm text-secondary font-semibold">
+                {completedPlans.length} {completedPlans.length === 1 ? "Hike" : "Hikes"}
+              </span>
+            )}
+          </div>
+
+          {completedPlans.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-secondary/30 p-10 text-center bg-surface-container-low">
+              <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">landscape</span>
+              <p className="font-body-md text-on-surface-variant">
+                No completed hikes recorded yet. Once you complete your trips, they will appear here!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {completedPlans.map((plan: any) => {
+                const otherMembersFirstNames = (plan.members || [])
+                  .filter((m: any) => m.user_id !== user.user_id)
+                  .map((m: any) => (m.name ? m.name.split(' ')[0] : ''))
+                  .filter(Boolean);
+
+                const displayNames = otherMembersFirstNames.slice(0, 3);
+
+                return (
+                  <div
+                    key={plan.plan_id}
+                    className="group relative flex flex-col justify-between rounded-3xl border border-secondary/20 bg-surface-container-low overflow-hidden shadow-sm transition-all hover:shadow-md"
+                  >
+                    <Link to={`/plans/completed/${plan.plan_id}`} className="block">
+                      <div className="relative h-44 w-full bg-cover bg-center" style={{ backgroundImage: `url('/${plan.image_url}')` }}>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                        <div className="absolute top-3 left-3">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/90 px-3 py-1 text-xs font-semibold text-white shadow-xs">
+                            <span className="material-symbols-outlined text-[14px]">check</span>
+                            Completed
+                          </span>
+                        </div>
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <h3 className="font-headline-md text-xl font-bold text-white tracking-wide">
+                            {plan.mountain_name}
+                          </h3>
+                          <p className="text-xs text-white/90 flex items-center gap-1 mt-0.5">
+                            <span className="material-symbols-outlined text-[14px]">location_on</span>
+                            {plan.location}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="p-5 flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-on-surface-variant text-sm flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[18px]">hiking</span>
+                            {plan.trail_name}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-secondary">
+                          <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                          <p className="font-label-md text-xs font-medium">
+                            {formatPlanDate(plan.date)}
+                          </p>
+                        </div>
+
+                        {displayNames.length > 0 && (
+                          <p className="font-label-md text-xs text-on-surface-variant flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[16px]">group</span>
+                            With {displayNames.join(', ')}
+                            {otherMembersFirstNames.length > 3 ? '...' : ''}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
       </main>
 

@@ -9,6 +9,7 @@ import {
   removePlanMember,
   updatePlan,
   updatePlanNotes,
+  completePlan,
   type DetailedPlan,
   type Waypoint,
   type TrailCheckpoint,
@@ -36,7 +37,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   Other: 'backpack',
 };
 
-/** Organizer-only form: invites a member by username or email address. */
+
 function InviteMemberForm({ planId, onInvited }: { planId: number; onInvited: () => void }) {
   const [identifier, setIdentifier] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -94,7 +95,6 @@ function InviteMemberForm({ planId, onInvited }: { planId: number; onInvited: ()
   );
 }
 
-/** Organizer-only form: edits date/trail, which the backend syncs to all members. */
 function EditPlanForm({
   plan,
   onUpdated,
@@ -238,11 +238,69 @@ export default function PlanDetail() {
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
 
-  
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completionDate, setCompletionDate] = useState(new Date().toISOString().slice(0, 10));
+  const [completionHours, setCompletionHours] = useState<string>('4');
+  const [completionMinutes, setCompletionMinutes] = useState<string>('0');
+  const [isSavingCompletion, setIsSavingCompletion] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+
+  async function handleCompletePlan(e: React.FormEvent) {
+    e.preventDefault();
+    if (!plan) return;
+
+    // Fallback to plan.id if plan.plan_id is undefined
+    const planId = plan.plan_id ?? (plan as any).id;
+    if (!planId) {
+      setCompletionError('Plan ID is missing.');
+      return;
+    }
+
+    const hrs = Math.max(0, parseInt(completionHours) || 0);
+    const mins = Math.min(59, Math.max(0, parseInt(completionMinutes) || 0));
+
+    if (hrs === 0 && mins === 0) {
+      setCompletionError('Please enter a valid time greater than 0 minutes.');
+      return;
+    }
+
+    const formattedDuration = `${hrs} hours ${mins} minutes`;
+
+    setIsSavingCompletion(true);
+    setCompletionError(null);
+    try {
+      const updated = await completePlan(planId, {
+        completion_date: completionDate,
+        completion_time: formattedDuration,
+      });
+      
+      setPlan((prev) => (prev ? { 
+        ...prev, 
+        ...updated, 
+        is_completed: true,
+        completed_at: updated?.completed_at || completionDate,
+        completion_time: updated?.completion_time || formattedDuration
+      } : null));
+
+      setIsCompleting(false);
+      setBanner('Congratulations! Plan marked as completed.');
+    } catch (err) {
+      setCompletionError(err instanceof Error ? err.message : 'Could not complete plan');
+    } finally {
+      setIsSavingCompletion(false);
+    }
+  }
+
   function loadPlan(preserveNotes = false) {
     if (!id) return Promise.resolve();
     return fetchPlanDetail(Number(id))
       .then(async (planData) => {
+
+        if (planData.is_completed) {
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+        
         setPlan(planData);
 
         if (!preserveNotes) {
@@ -255,9 +313,6 @@ export default function PlanDetail() {
           
           if (targetWaypoint) {
             const trailCps = await fetchTrailCheckpoints(targetWaypoint.waypoint_id);
-            
-            // Extract checkpoints specific to this plan if returned by detailed plan, 
-            // or filter the trail checkpoints based on the plan's target checkpoint sequence/id.
             const planCheckpoints = (planData as any).checkpoints || [];
             
             if (planCheckpoints.length > 0) {
@@ -309,6 +364,7 @@ export default function PlanDetail() {
       setBanner('Could not remove member.');
     }
   }
+
   async function handleRegenerateGear() {
     if (!plan) return;
     setGearStatus('loading');
@@ -504,6 +560,131 @@ export default function PlanDetail() {
                 <p className="text-xs text-on-surface-variant italic">No intermediate checkpoints found for this trail section.</p>
               )}
             </section>
+            
+            {/* --- Completion Section / Button --- */}
+            {plan.is_owner && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-secondary/10 pt-6">
+                  <div>
+                    <h3 className="font-headline-md text-primary">Trail Status</h3>
+                    {plan.is_completed ? (
+                      <p className="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                        Completed on {formatDate(plan.completed_at?.slice(0, 10) || plan.date)} {plan.completion_time && `(Duration: ${plan.completion_time})`}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-on-surface-variant mt-1">
+                        Finished this trail? Log your completion time and date.
+                      </p>
+                    )}
+                  </div>
+
+                  {!plan.is_completed && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCompleting(true)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 font-label-md text-label-md text-white shadow-sm hover:bg-emerald-700 transition-colors"
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                        task_alt
+                      </span>
+                      Complete hiking plan
+                    </button>
+                  )}
+                </div>
+
+                {/* Completion Modal / Form Drawer */}
+                {isCompleting && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <form
+                      onSubmit={handleCompletePlan}
+                      className="w-full max-w-md rounded-2xl bg-surface-container-lowest p-6 shadow-xl border border-secondary/20 flex flex-col gap-4"
+                    >
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-headline-md text-primary">Log Trail Completion</h3>
+                        <button
+                          type="button"
+                          onClick={() => setIsCompleting(false)}
+                          className="text-on-surface-variant hover:text-on-surface"
+                        >
+                          <span className="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+
+                    <p className="text-xs text-on-surface-variant">
+                      Record the date and duration it took you to accomplish <strong>{plan.mountain_name}</strong> via <strong>{plan.trail_name}</strong>.
+                    </p>
+
+                    <label className="flex flex-col gap-1">
+                      <span className="text-sm text-on-surface-variant">Completion Date</span>
+                      <input
+                        type="date"
+                        required
+                        value={completionDate}
+                        max={new Date().toISOString().slice(0, 10)}
+                        onChange={(e) => setCompletionDate(e.target.value)}
+                        className="rounded-lg border border-secondary/20 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary bg-surface text-on-surface"
+                      />
+                    </label>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="flex flex-col gap-1">
+                        <span className="text-sm text-on-surface-variant">Hours</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          required
+                          value={completionHours}
+                          onChange={(e) => {
+                            setCompletionHours(e.target.value);
+                            setCompletionError(null);
+                          }}
+                          className="rounded-lg border border-secondary/20 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary bg-surface text-on-surface"
+                        />
+                      </label>
+
+                      <label className="flex flex-col gap-1">
+                        <span className="text-sm text-on-surface-variant">Minutes</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          required
+                          value={completionMinutes}
+                          onChange={(e) => {
+                            setCompletionMinutes(e.target.value);
+                            setCompletionError(null);
+                          }}
+                          className="rounded-lg border border-secondary/20 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary bg-surface text-on-surface"
+                        />
+                      </label>
+                    </div>
+
+                    {completionError && <p className="text-error text-xs">{completionError}</p>}
+
+                    <div className="flex justify-end gap-2 mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsCompleting(false)}
+                        disabled={isSavingCompletion}
+                        className="rounded-lg border border-secondary/20 px-4 py-2 font-label-md text-label-md text-on-surface-variant"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingCompletion}
+                        className="rounded-lg bg-primary px-4 py-2 font-label-md text-label-md text-on-primary disabled:opacity-50"
+                      >
+                        {isSavingCompletion ? 'Saving...' : 'Save & Complete'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </>
+          )}
 
             {/* --- Organizer Notes / Announcements Board --- */}
             <section className="border-t border-secondary/10 pt-6">
@@ -627,7 +808,7 @@ export default function PlanDetail() {
                 </p>
               )}
             </section>
-
+            
             {/* Group collaboration */}
             <section className="border-t border-secondary/10 pt-6">
               <h2 className="font-headline-md text-primary mb-3">

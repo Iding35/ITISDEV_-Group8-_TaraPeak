@@ -55,6 +55,7 @@ export interface Plan {
   status?: string;
   checkpoint_id?: number;      
   checkpoint_name?: string; 
+  is_owner: boolean;
 }
 
 export interface GearItem {
@@ -100,6 +101,9 @@ export interface DetailedPlan extends Plan {
   ai_difficulty_analysis: string | null;
   ai_safety_analysis: string | null;
   ai_route_plan: string | null;
+  is_completed?: boolean;
+  completion_time?: string;
+  completed_at?: string;
 }
 
 export type NotificationType =
@@ -228,6 +232,11 @@ export interface MostTakenTrail {
   total_completed_hikes: number;
   most_taken_checkpoint: string | null;
 }
+export interface CompletePlanPayload {
+  completion_date: string; // ISO date string or YYYY-MM-DD
+  completion_time: string; // HH:MM or interval string
+}
+
 
 // Defaults to port 8000. Override with VITE_API_URL in a .env file when that
 // port is taken by another project on your machine.
@@ -375,6 +384,23 @@ export async function updatePlan(
   return response.json();
 }
 
+export async function completePlan(
+  planId: number | string,
+  payload: { completion_date: string; completion_time: string }
+) {
+  const res = await fetch(`${API_URL}/plans/${planId}/complete`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to mark plan as complete');
+  }
+
+  return res.json();
+}
 /** Generates a packing list for a prospective plan without saving anything. */
 export async function generateGearRecommendation(
   mountainId: number,
@@ -683,3 +709,4 @@ export async function fetchMostTakenTrails(): Promise<MostTakenTrail[]> {
   if (!response.ok) throw await extractError(response, 'Could not load completed trail analytics');
   return response.json();
 }
+
