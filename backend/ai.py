@@ -69,6 +69,24 @@ def _generate_fallback_difficulty(mountain: dict) -> str:
         f"helps prevent premature lactic acid build-up on the ascent."
     )
 
+def get_weather_condition_label(code: Optional[int]) -> str:
+    if code is None:
+        return "Unknown"
+    if code == 0:
+        return "Clear Sky"
+    if code in (1, 2):
+        return "Partly Cloudy"
+    if code == 3:
+        return "Overcast"
+    if 51 <= code <= 55:
+        return "Drizzle"
+    if 61 <= code <= 65:
+        return "Rain"
+    if 80 <= code <= 82:
+        return "Rain Showers"
+    if code >= 95:
+        return "Thunderstorm"
+    return "Fair / Clear"
 
 def _generate_fallback_safety(mountain: dict, weather: Optional[dict]) -> str:
     mountain_name = mountain.get('mountain_name', 'the mountain')
@@ -169,16 +187,23 @@ def analyze_safety(mountain: dict, weather: Optional[dict]) -> str:
     try:
         system_prompt = (
             "You are a mountain safety advisor for the TaraPeak app. "
-            "Give a concise safety analysis in 3-4 short paragraphs or bullet points, covering the trail's "
-            "known hazards, how the forecast weather affects safety on this specific date if provided, "
+            "Your response MUST start with an explicit Safety Level assessment formatted exactly as: "
+            "**Safety Level:** [Low Risk / Moderate Risk / High Risk / Dangerous]' on the very first line. "
+            "**Analysis:** Give a concise safety analysis in 3-4 short paragraphs or bullet points, covering the trail's "
+            "known hazards, how the forecast weather affects safety on this specific date if provided,"
             "and 2-3 concrete precautions a hiker should take. Be direct and specific, not generic."
+            "CRITICAL RULE: If the Safety Level is 'Dangerous', you MUST append a clear warning banner "
+            "at the VERY END of your response, strongly recommending that the hiker select a different hiking date."
         )
         weather_line = "No weather forecast is available for the selected date."
         if weather:
+            condition_text = get_weather_condition_label(weather.get('weather_code'))
             weather_line = (
                 f"Forecast for {weather.get('hiking_date')}: {weather.get('temperature')}c, "
-                f"{weather.get('humidity')}% humidity, {weather.get('wind_speed')} km/h wind."
+                f"{weather.get('humidity')}% humidity, {weather.get('wind_speed')} km/h wind, "
+                f"{weather.get('precipitation_mm', 0.0)} mm precipitation, condition: {condition_text}."
             )
+
         user_prompt = (
             f"Mountain: {mountain.get('mountain_name', '')} ({mountain.get('location', '')})\n"
             f"Difficulty: {mountain.get('difficulty', '')}\n"

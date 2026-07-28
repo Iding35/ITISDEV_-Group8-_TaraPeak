@@ -129,6 +129,8 @@ export interface WeatherForecast {
   temperature: number;
   humidity: number;
   wind_speed: number;
+  precipitation_mm: number;
+  weather_code: number;
 }
 
 export interface WeatherCheckResponse {
@@ -467,10 +469,18 @@ export async function fetchDifficultyAnalysis(mountainId: number): Promise<strin
   return data.analysis;
 }
 
-export async function fetchSafetyAnalysis(mountainId: number, date?: string): Promise<string> {
-  const url = date
-    ? `${API_URL}/ai/safety/${mountainId}?date=${date}`
-    : `${API_URL}/ai/safety/${mountainId}`;
+export async function fetchSafetyAnalysis(
+  mountainId: number,
+  date?: string,
+  waypointId?: number
+): Promise<string> {
+  const params = new URLSearchParams();
+  if (date) params.append('date', date);
+  if (waypointId !== undefined) params.append('waypoint_id', waypointId.toString());
+
+  const queryString = params.toString() ? `?${params.toString()}` : '';
+  const url = `${API_URL}/ai/safety/${mountainId}${queryString}`;
+
   const res = await fetch(url, { method: 'POST', headers: authHeaders() });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Failed' }));

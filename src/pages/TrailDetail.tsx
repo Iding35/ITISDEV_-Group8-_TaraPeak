@@ -247,6 +247,7 @@ function TrailAndCheckpointSection({
     </div>
   );
 }
+
 function SavePlanSection({
   mountainId,
   date,
@@ -312,6 +313,21 @@ function SavePlanSection({
       setSaveError(err instanceof Error ? err.message : 'Could not save plan');
     }
   }
+
+  // Helper map for WMO Weather Codes
+  function getWeatherDisplay(code: number | null | undefined) {
+    if (code === null || code === undefined) return { label: 'Weather Unavailable' };
+    if (code === 0) return { label: 'Clear Sky', icon: '☀️' };
+    if (code === 1 || code === 2) return { label: 'Partly Cloudy', icon: '⛅️' };
+    if (code === 3) return { label: 'Overcast', icon: '☁️' };
+    if (code >= 51 && code <= 55) return { label: 'Drizzle', icon: '💧' };
+    if (code >= 61 && code <= 65) return { label: 'Rain', icon: '🌧' };
+    if (code >= 80 && code <= 82) return { label: 'Rain Showers', icon: '🌦' };
+    if (code >= 95) return { label: 'Thunderstorm', icon: '⛈' };
+    return { label: 'Fair / Clear', icon: '🌤' };
+  }
+
+  const weatherDetails = getWeatherDisplay(weather?.forecast?.weather_code);
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 flex flex-col h-full">
@@ -419,35 +435,61 @@ function SavePlanSection({
                   Querying weather metrics...
                 </div>
               ) : weather?.forecast ? (
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
-                    <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
-                      <span className="material-symbols-outlined text-amber-500 text-xs">thermostat</span>
-                      Temp
-                    </span>
-                    <span className="text-xl font-bold text-gray-800 mt-1">
-                      {weather.forecast.temperature}<span className="text-xs font-normal text-gray-500">°C</span>
-                    </span>
+                <div className="flex flex-col gap-2.5">
+                  {/* Top Row: Temp, Humidity, Wind */}
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
+                      <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                        <span className="material-symbols-outlined text-amber-500 text-xs">thermostat</span>
+                        Temp
+                      </span>
+                      <span className="text-xl font-bold text-gray-800 mt-1">
+                        {weather.forecast.temperature}<span className="text-xs font-normal text-gray-500">°C</span>
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
+                      <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                        <span className="material-symbols-outlined text-blue-500 text-xs">humidity_percentage</span>
+                        Humidity
+                      </span>
+                      <span className="text-xl font-bold text-gray-800 mt-1">
+                        {weather.forecast.humidity}<span className="text-xs font-normal text-gray-500">%</span>
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
+                      <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                        <span className="material-symbols-outlined text-teal-500 text-xs">air</span>
+                        Wind
+                      </span>
+                      <span className="text-xl font-bold text-gray-800 mt-1">
+                        {weather.forecast.wind_speed} <span className="text-[10px] font-normal text-gray-500">km/h</span>
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
-                    <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
-                      <span className="material-symbols-outlined text-blue-500 text-xs">humidity_percentage</span>
-                      Humidity
-                    </span>
-                    <span className="text-xl font-bold text-gray-800 mt-1">
-                      {weather.forecast.humidity}<span className="text-xs font-normal text-gray-500">%</span>
-                    </span>
-                  </div>
+                  {/* Bottom Row: Weather Condition Description & Precipitation */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex items-center justify-between">
+                      <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                        <span className="material-symbols-outlined text-indigo-500 text-xs">cloud</span>
+                        Condition
+                      </span>
+                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                        <span>{weatherDetails.icon}</span> {weatherDetails.label}
+                      </span>
+                    </div>
 
-                  <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex flex-col justify-between">
-                    <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
-                      <span className="material-symbols-outlined text-teal-500 text-xs">air</span>
-                      Wind
-                    </span>
-                    <span className="text-xl font-bold text-gray-800 mt-1">
-                      {weather.forecast.wind_speed} <span className="text-[10px] font-normal text-gray-500">km/h</span>
-                    </span>
+                    <div className="bg-white p-3 rounded-xl border border-gray-200/60 shadow-xs flex items-center justify-between">
+                      <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                        <span className="material-symbols-outlined text-blue-400 text-xs">water_drop</span>
+                        Rainfall
+                      </span>
+                      <span className="text-xs font-bold text-gray-800">
+                        {weather.forecast.precipitation_mm ?? 0} <span className="text-[10px] font-normal text-gray-500">mm</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -461,7 +503,6 @@ function SavePlanSection({
 
             <div className="pt-2.5 mt-2 border-t border-gray-200/60 flex items-center justify-between text-[11px] text-gray-400">
               <span>Forecasts available up to 2 weeks ahead.</span>
-              
             </div>
           </div>
         </div>
@@ -768,13 +809,13 @@ export default function TrailDetail() {
                 />
 
                 <AIAnalysisCard
-                  title="AI Safety Advisory"
-                  icon="shield"
-                  buttonLabel="Check Safety"
-                  disabled={!!safetyDisabledReason}
-                  disabledHint={safetyDisabledReason}
-                  fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, date)}
-                />
+  title="AI Safety Advisory"
+  icon="verified_user"
+  buttonLabel="Generate Safety Advisory"
+  fetcher={() => fetchSafetyAnalysis(mountain.mountain_id, date, selectedTrail!.waypoint_id)}
+  disabled={!!safetyDisabledReason}
+  disabledHint={safetyDisabledReason}
+/>
               </div>
 
               {/* Trail Reports Section */}

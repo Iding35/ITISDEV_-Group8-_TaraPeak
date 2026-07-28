@@ -436,16 +436,16 @@ def save_cached_analysis(mountain_id: int, analysis_type: str, content: str, cac
     conn.close()
 
 
-def get_weather_forecast(mountain_id: int, hiking_date: date):
+def get_weather_forecast(waypoint_id: int, hiking_date: date):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT temperature, humidity, wind_speed 
+        SELECT temperature, humidity, wind_speed, precipitation, weather_code 
         FROM weather_forecasts 
-        WHERE mountain_id = %s AND hiking_date = %s
+        WHERE waypoint_id = %s AND hiking_date = %s
         """,
-        (mountain_id, hiking_date),
+        (waypoint_id, hiking_date),
     )
     row = cursor.fetchone()
     cursor.close()
@@ -453,26 +453,40 @@ def get_weather_forecast(mountain_id: int, hiking_date: date):
     
     if row:
         return {
+            "waypoint_id": waypoint_id,
+            "hiking_date": hiking_date.isoformat(),
             "temperature": float(row[0]),
-            "humidity": int(row[1]),
-            "wind_speed": float(row[2])
+            "humidity": int(row[1]) if row[1] is not None else None,
+            "wind_speed": float(row[2]) if row[2] is not None else None,
+            "precipitation_mm": float(row[3]) if row[3] is not None else 0.0,
+            "weather_code": int(row[4]) if row[4] is not None else None,
         }
     return None
 
-def save_weather_forecast(mountain_id: int, hiking_date: date, temp: float, hum: int, wind: float):
+def save_weather_forecast(
+    waypoint_id: int, 
+    hiking_date: date, 
+    temp: float, 
+    hum: int, 
+    wind: float, 
+    precipitation: float, 
+    weather_code: int
+):
     conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute(
             """
-            INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (mountain_id, hiking_date) DO UPDATE 
+            INSERT INTO weather_forecasts (waypoint_id, hiking_date, temperature, humidity, wind_speed, precipitation, weather_code)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (waypoint_id, hiking_date) DO UPDATE 
             SET temperature = EXCLUDED.temperature, 
                 humidity = EXCLUDED.humidity, 
-                wind_speed = EXCLUDED.wind_speed
+                wind_speed = EXCLUDED.wind_speed,
+                precipitation = EXCLUDED.precipitation,
+                weather_code = EXCLUDED.weather_code
             """,
-            (mountain_id, hiking_date, temp, hum, wind),
+            (waypoint_id, hiking_date, temp, hum, wind, precipitation, weather_code),
         )
         conn.commit()
     except Exception as e:

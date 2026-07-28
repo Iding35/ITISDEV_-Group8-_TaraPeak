@@ -21,17 +21,6 @@ CREATE TABLE IF NOT EXISTS mountains (
     total_hikers INT DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS weather_forecasts (
-    weather_id SERIAL PRIMARY KEY,
-    mountain_id INT,
-    hiking_date DATE,
-    temperature DECIMAL(3,1),
-    humidity INT,
-    wind_speed INT,
-    CONSTRAINT weather_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id),
-    CONSTRAINT weather_unique UNIQUE (mountain_id, hiking_date)
-);
-
 CREATE TABLE IF NOT EXISTS route_waypoints (
     waypoint_id SERIAL PRIMARY KEY,
     mountain_id INT NOT NULL,
@@ -46,6 +35,21 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
     distance_from_start_km DECIMAL(4,1),
     total_hikers INT DEFAULT 0, -- added total hikers PER TRAIL (PHILLIN)
     CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS weather_forecasts (
+    weather_id SERIAL PRIMARY KEY,
+    waypoint_id INT NOT NULL,
+    mountain_id INT,
+    hiking_date DATE NOT NULL,
+    temperature DECIMAL(3,1),
+    humidity INT,
+    wind_speed DECIMAL(4,1), 
+    precipitation DECIMAL(5,1), 
+    weather_code INT,          
+    CONSTRAINT weather_fk_waypoints FOREIGN KEY (waypoint_id) REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE,
+    CONSTRAINT weather_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE,
+    CONSTRAINT weather_unique UNIQUE (waypoint_id, hiking_date)
 );
 
 CREATE TABLE IF NOT EXISTS trail_checkpoints (
@@ -222,21 +226,6 @@ INSERT INTO mountains (mountain_name, location, description, image_url, terrain,
 ('Mount Yangbew', 'La Trinidad, Benguet', 'A short hiking destination famous for its sunrise views, rock formations, and colorful flower gardens.', 'img/mt-yangbew.svg', 'Grassland', 'Loose rock near the formations, strong crosswinds on the open plateau, sun exposure with almost no tree cover, crowding at sunrise.', 0),
 ('Mount Pulag', 'Kabayan, Benguet', 'The third highest mountain in the Philippines, renowned for its sea of clouds, mossy forests, and breathtaking sunrise.', 'img/mt-pulag.svg', 'Mossy Forest', 'Hypothermia risk from near-freezing summit temperatures, altitude sickness above 2,500 m, dense fog with low visibility, slippery mossy roots, long emergency evacuation times.', 0);
 
--- WEATHER FORECASTS
-INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, wind_speed) VALUES
-(1, CURRENT_DATE, 18.5, 70, 12),
-(1, CURRENT_DATE + 1, 19.0, 65, 10),
-(1, CURRENT_DATE + 2, 17.5, 75, 15),
-(1, CURRENT_DATE + 3, 18.0, 72, 13),
-(2, CURRENT_DATE, 20.0, 60, 8),
-(2, CURRENT_DATE + 1, 21.0, 55, 9),
-(2, CURRENT_DATE + 2, 19.5, 68, 11),
-(2, CURRENT_DATE + 3, 20.5, 58, 8),
-(3, CURRENT_DATE, 8.0, 85, 25),
-(3, CURRENT_DATE + 1, 7.5, 88, 30),
-(3, CURRENT_DATE + 2, 9.0, 80, 22),
-(3, CURRENT_DATE + 3, 8.5, 83, 27);
-
 -- ROUTE WAYPOINTS (Trails)
 INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km, total_hikers) VALUES
 -- Mount Ulap Trails (IDs: 1, 2, 3)
@@ -352,6 +341,23 @@ VALUES
 (3, 11, 3, 'Lusod Village', 'A remote, high-altitude mountain village serving as the primary overnight campsite for day one.', 120.9620, 16.5640, 1920, 'Hard', 7.5, 16.0),
 (3, 11, 4, 'Bantay Lakay Pine Ridge', 'A scenic, open pine ridge trail presenting rolling hills and steep climbs.', 120.9415, 16.5855, 2350, 'Hard', 11.0, 21.5),
 (3, 11, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m), approaching directly from the eastern Nueva Vizcaya slope.', 120.89879, 16.59772, 2928, 'Hard', 14.0, 24.5);
+
+
+-- WEATHER FORECASTS
+INSERT INTO weather_forecasts (waypoint_id, mountain_id, hiking_date, temperature, humidity, wind_speed, precipitation, weather_code) VALUES
+(1, 1, CURRENT_DATE, 18.5, 70, 12.0, 0.0, 0),
+(1, 1, CURRENT_DATE + 1, 19.0, 65, 10.0, 0.0, 0),
+(1, 1, CURRENT_DATE + 2, 17.5, 75, 15.0, 1.2, 51),
+(1, 1, CURRENT_DATE + 3, 18.0, 72, 13.0, 0.5, 2),
+(4, 2, CURRENT_DATE, 20.0, 60, 8.0, 0.0, 0),
+(4, 2, CURRENT_DATE + 1, 21.0, 55, 9.0, 0.0, 0),
+(4, 2, CURRENT_DATE + 2, 19.5, 68, 11.0, 0.0, 1),
+(4, 2, CURRENT_DATE + 3, 20.5, 58, 8.0, 0.0, 0),
+(8, 3, CURRENT_DATE, 8.0, 85, 25.0, 4.5, 61),
+(8, 3, CURRENT_DATE + 1, 7.5, 88, 30.0, 8.2, 63),
+(8, 3, CURRENT_DATE + 2, 9.0, 80, 22.0, 1.0, 51),
+(8, 3, CURRENT_DATE + 3, 8.5, 83, 27.0, 3.1, 61);
+
 
 -- USERS
 INSERT INTO users (first_name, last_name, username, email, password, hiker_experience, role) VALUES

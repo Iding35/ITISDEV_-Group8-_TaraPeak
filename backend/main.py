@@ -84,13 +84,12 @@ def get_mountain(mountain_id: int):
 # ---------------------------------------------------------------------------
 
 
-
 @app.get("/weather/{mountain_id}")
 def check_weather(
     mountain_id: int,
     hiking_date: datetime.date = Query(..., alias="date"), 
     waypoint_id: int = Query(..., alias="waypoint_id"),
-    current_user: dict = Depends(get_current_user),
+    
 ):
     fetch_mountain(mountain_id)
 
@@ -118,7 +117,7 @@ def check_weather(
     latitude, longitude = row[0], row[1]
 
     # 2. Query database forecast cache
-    cached = get_weather_forecast(mountain_id, hiking_date)
+    cached = get_weather_forecast(waypoint_id, hiking_date)
     if cached is not None:
         return {"date_valid": True, "forecast": cached}
 
@@ -131,9 +130,14 @@ def check_weather(
     if result is None:
         return {"date_valid": True, "forecast": None}
 
-    # 4. Save to database cache
     save_weather_forecast(
-        mountain_id, hiking_date, result["temperature"], result["humidity"], result["wind_speed"]
+        waypoint_id, 
+        hiking_date, 
+        result["temperature"], 
+        result["humidity"], 
+        result["wind_speed"],
+        result["precipitation_mm"],
+        result["weather_code"]
     )
     return {"date_valid": True, "forecast": result}
 
@@ -1060,6 +1064,7 @@ def ai_difficulty(mountain_id: int, current_user: dict = Depends(get_current_use
 def ai_safety(
     mountain_id: int,
     hiking_date: date = Query(None, alias="date"),
+    waypoint_id: int = Query(..., alias="waypoint_id"),
     current_user: dict = Depends(get_current_user),
 ):
     mountain = fetch_mountain(mountain_id)
@@ -1069,7 +1074,7 @@ def ai_safety(
     if cached is not None:
         return {"mountain_id": mountain_id, "analysis": cached, "cached": True}
 
-    weather_data = get_weather_forecast(mountain_id, hiking_date) if hiking_date else None
+    weather_data = get_weather_forecast(waypoint_id, hiking_date) if hiking_date else None
 
     try:
         analysis = ai.analyze_safety(mountain, weather_data)

@@ -12,7 +12,7 @@ def fetch_forecast_for_date(latitude: float, longitude: float, hiking_date: date
         f"&longitude={longitude}"
         f"&start_date={date_str}"
         f"&end_date={date_str}"
-        f"&daily=temperature_2m_mean,relative_humidity_2m_mean,wind_speed_10m_max"
+        f"&daily=temperature_2m_mean,relative_humidity_2m_mean,wind_speed_10m_max,precipitation_sum,weather_code"
         f"&timezone=Asia%2FSingapore"
     )
 
@@ -26,12 +26,16 @@ def fetch_forecast_for_date(latitude: float, longitude: float, hiking_date: date
     temps = daily.get("temperature_2m_mean", [])
     hums = daily.get("relative_humidity_2m_mean", [])
     winds = daily.get("wind_speed_10m_max", [])
+    precipitation = daily.get("precipitation_sum", [])
+    weather_codes = daily.get("weather_code", [])
 
     if not temps or temps[0] is None:
         return None
 
     return {
         "temperature": round(temps[0], 1),
-        "humidity": round(hums[0]),
-        "wind_speed": round(winds[0], 1),
+        "humidity": round(hums[0]) if hums and hums[0] is not None else None,
+        "wind_speed": round(winds[0], 1) if winds and winds[0] is not None else None,
+        "precipitation_mm": round(precipitation[0], 1) if precipitation and precipitation[0] is not None else 0.0,
+        "weather_code": weather_codes[0] if weather_codes and weather_codes[0] is not None else None,
     }
