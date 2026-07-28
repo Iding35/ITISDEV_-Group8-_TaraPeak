@@ -369,7 +369,7 @@ function SavePlanSection({
               {user && saveStatus === 'saved' && (
                 <p className="text-primary font-semibold text-xs mb-2">
                   Plan saved!{' '}
-                  <Link to="/plans" className="underline">
+                  <Link to="/dashboard" className="underline">
                     View my plans
                   </Link>
                 </p>

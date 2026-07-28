@@ -90,9 +90,9 @@ function LogoutIcon() {
 
 const NAV_ITEMS: { to: string; label: string; icon: ReactNode }[] = [
   { to: '/', label: 'Explore', icon: <CompassIcon /> },
-  { to: '/dashboard', label: 'Dashboard', icon: <GridIcon /> },
   { to: '/planner', label: 'Plan a Hike', icon: <MountainIcon /> },
-  { to: '/plans', label: 'Plans', icon: <CalendarIcon /> },
+  { to: '/dashboard', label: 'Dashboard', icon: <GridIcon /> }
+  
 ];
 
 /**

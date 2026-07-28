@@ -2,7 +2,6 @@ import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Mountains from './pages/Mountains';
-import MyPlans from './pages/MyPlans';
 import PlanDetail from './pages/PlanDetail';
 import Planner from './pages/Planner';
 import Signup from './pages/Signup';
@@ -37,7 +36,6 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/planner" element={<Planner />} />
-          <Route path="/plans" element={<MyPlans />} />
           <Route path="/plans/:id" element={<PlanDetail />} />
           <Route path="/dashboard" element={<Dashboard />} />
           {/* Admin Routes */}

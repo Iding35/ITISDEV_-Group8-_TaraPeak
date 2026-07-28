@@ -295,7 +295,7 @@ export default function PlanDetail() {
         <main className="max-w-5xl mx-auto px-margin-desktop py-lg text-center">
           <p className="text-error font-headline-md mb-4">{error || 'Plan not found'}</p>
           <button
-            onClick={() => navigate('/plans')}
+            onClick={() => navigate('/dashboard')}
             className="rounded-xl bg-primary px-4 py-2 font-label-md text-on-primary"
           >
             Back to My Plans
@@ -313,7 +313,7 @@ export default function PlanDetail() {
       <Navbar />
       <main className="max-w-5xl mx-auto px-margin-desktop py-lg">
         <button
-          onClick={() => navigate('/plans')}
+          onClick={() => navigate('/dashboard')}
           className="inline-flex items-center gap-1 text-primary text-sm mb-4 hover:underline"
         >
           <span className="material-symbols-outlined text-[18px]">arrow_back</span> Back to Plans

@@ -48,6 +48,23 @@ CREATE TABLE IF NOT EXISTS route_waypoints (
     CONSTRAINT waypoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS trail_checkpoints (
+    checkpoint_id SERIAL PRIMARY KEY,
+    mountain_id INT NOT NULL,
+    route_waypoint_id INT NOT NULL,
+    sequence_order INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    longitude FLOAT NOT NULL,
+    latitude FLOAT NOT NULL,
+    elevation_m INT,
+    difficulty VARCHAR(20) NOT NULL,
+    estimated_time FLOAT NOT NULL,
+    distance_from_start_km DECIMAL(4,1),
+    CONSTRAINT checkpoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE,
+    CONSTRAINT checkpoint_fk_route_waypoints FOREIGN KEY (route_waypoint_id) REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE
+);
+
 -- Saved hike plans. `plans` is the hike_plans table referenced in the specs.
 -- The four ai_* columns persist the AI output that was generated for THIS
 -- plan's exact mountain/trail/date combination, so a saved plan keeps the
@@ -58,6 +75,11 @@ CREATE TABLE IF NOT EXISTS plans (
     mountain_id INT NOT NULL,
     waypoint_id INT NOT NULL,
     date DATE NOT NULL,
+    notes TEXT NULL,
+
+    is_completed BOOLEAN DEFAULT FALSE,
+    completion_time INTERVAL NULL, 
+    completed_at TIMESTAMP NULL,
 
     ai_gear_summary TEXT,
     ai_difficulty_analysis TEXT,
@@ -78,6 +100,26 @@ CREATE TABLE IF NOT EXISTS plans (
     CONSTRAINT plans_fk_waypoints
         FOREIGN KEY (waypoint_id)
         REFERENCES route_waypoints(waypoint_id)
+);
+
+CREATE TABLE IF NOT EXISTS plan_completed_checkpoints (
+    plan_checkpoint_id SERIAL PRIMARY KEY,
+    plan_id INT NOT NULL,
+    checkpoint_id INT NOT NULL, 
+    reached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT NULL,
+
+    CONSTRAINT fk_plan_completed_cp_plans
+        FOREIGN KEY (plan_id)
+        REFERENCES plans(plan_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_plan_completed_cp_trail_cp
+        FOREIGN KEY (checkpoint_id)
+        REFERENCES trail_checkpoints(checkpoint_id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT uc_plan_checkpoint UNIQUE (plan_id, checkpoint_id)
 );
 
 CREATE TABLE IF NOT EXISTS gear_recommendations (
@@ -143,23 +185,6 @@ CREATE TABLE IF NOT EXISTS ai_analysis_cache (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT ai_cache_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id),
     CONSTRAINT ai_cache_unique UNIQUE (mountain_id, analysis_type, cache_key)
-);
-
-CREATE TABLE IF NOT EXISTS trail_checkpoints (
-    checkpoint_id SERIAL PRIMARY KEY,
-    mountain_id INT NOT NULL,
-    route_waypoint_id INT NOT NULL,
-    sequence_order INT NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    longitude FLOAT NOT NULL,
-    latitude FLOAT NOT NULL,
-    elevation_m INT,
-    difficulty VARCHAR(20) NOT NULL,
-    estimated_time FLOAT NOT NULL,
-    distance_from_start_km DECIMAL(4,1),
-    CONSTRAINT checkpoint_fk_mountains FOREIGN KEY (mountain_id) REFERENCES mountains(mountain_id) ON DELETE CASCADE,
-    CONSTRAINT checkpoint_fk_route_waypoints FOREIGN KEY (route_waypoint_id) REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE
 );
 
 -- TRIGGER FUNCTION TO AUTO-SUM TOTAL HIKERS IN THE MOUNTAINS TABLE
@@ -359,16 +384,26 @@ INSERT INTO trail_reports (mountain_id, waypoint_id, user_id, rating, condition,
 -- ==========================================================
 -- PLANNED TRIPS (`plans`)
 -- ==========================================================
-INSERT INTO plans (user_id, mountain_id, waypoint_id, date) VALUES
-(1, 1, 3, CURRENT_DATE),
-(2, 1, 1, CURRENT_DATE),
-(3, 1, 2, CURRENT_DATE),
-(4, 1, 3, CURRENT_DATE),
-(5, 2, 7, CURRENT_DATE),
 
-(1, 1, 2, CURRENT_DATE + 5),
-(2, 1, 3, CURRENT_DATE + 12),
-(3, 3, 10, CURRENT_DATE + 10),
-(4, 3, 8, CURRENT_DATE + 10),
-(5, 3, 11, CURRENT_DATE + 20),
-(1, 2, 5, CURRENT_DATE + 7);
+INSERT INTO plans (user_id, mountain_id, waypoint_id, date, is_completed, completion_time, completed_at) VALUES
+(1, 1, 3, CURRENT_DATE, TRUE, INTERVAL '4 hours 30 minutes', CURRENT_TIMESTAMP),
+(2, 1, 1, CURRENT_DATE, FALSE, NULL, NULL),
+(3, 1, 2, CURRENT_DATE, TRUE, INTERVAL '5 hours 15 minutes', CURRENT_TIMESTAMP),
+(4, 1, 3, CURRENT_DATE, FALSE, NULL, NULL),
+(5, 2, 7, CURRENT_DATE, FALSE, NULL, NULL),
+
+(1, 1, 2, CURRENT_DATE + INTERVAL '5 days', FALSE, NULL, NULL),
+(2, 1, 3, CURRENT_DATE + INTERVAL '12 days', FALSE, NULL, NULL),
+(3, 3, 10, CURRENT_DATE + INTERVAL '10 days', FALSE, NULL, NULL),
+(4, 3, 8, CURRENT_DATE + INTERVAL '10 days', FALSE, NULL, NULL),
+(5, 3, 11, CURRENT_DATE + INTERVAL '20 days', FALSE, NULL, NULL),
+(1, 2, 5, CURRENT_DATE + INTERVAL '7 days', FALSE, NULL, NULL);
+
+
+-- ==========================================
+--  `plan_completed_checkpoints`
+-- ==========================================
+INSERT INTO plan_completed_checkpoints (plan_id, checkpoint_id, reached_at, notes) VALUES
+(1, 1, CURRENT_TIMESTAMP - INTERVAL '4 hours', 'Hit the trailhead on time.'),
+(1, 2, CURRENT_TIMESTAMP - INTERVAL '2 hours', 'Made it past the ridge checkpoint.'),
+(3, 2, CURRENT_TIMESTAMP - INTERVAL '3 hours', 'Paused briefly at the standard lookout.');
