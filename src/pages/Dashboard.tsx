@@ -156,6 +156,8 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [myReports, setMyReports] = useState<MyTrailReport[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [invites, setInvites] = useState<PlanInvite[]>([]);
   const [respondingId, setRespondingId] = useState<number | null>(null);
@@ -261,22 +263,25 @@ export default function Dashboard() {
 
   }, [user]);
 
-  async function handleDelete(planId: number) {
-  const confirmed = window.confirm(
-    "Are you sure you want to delete this hiking plan?"
-  );
-
-  if (!confirmed) return;
+  async function handleDelete() {
+  if (planToDelete === null) return;
 
   const previous = plans;
-  setPlans((current) => current.filter((p) => p.plan_id !== planId));
+
+  setPlans((current) =>
+    current.filter((p) => p.plan_id !== planToDelete)
+  );
 
   try {
-    await deletePlan(planId);
-    } catch {
-      setPlans(previous);
-      alert("Failed to delete hiking plan.");
-    }
+    await deletePlan(planToDelete);
+
+    setShowDeleteModal(false);
+    setPlanToDelete(null);
+
+  } catch {
+    setPlans(previous);
+    alert("Failed to delete hiking plan.");
+  }
   }
 
   useEffect(() => {
@@ -642,7 +647,10 @@ export default function Dashboard() {
                           {plan.is_owner && (
                             <button
                               type="button"
-                              onClick={() => handleDelete(plan.plan_id)}
+                              onClick={() => {
+                                setPlanToDelete(plan.plan_id);
+                                setShowDeleteModal(true);
+                              }}
                               aria-label={`Remove plan for ${plan.mountain_name}`}
                               className="absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 text-on-surface-variant transition-colors hover:text-error"
                             >
@@ -994,6 +1002,60 @@ export default function Dashboard() {
         </div>
         )}
 
+        {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
+
+            <div className="flex justify-center">
+
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+
+                <span className="material-symbols-outlined text-red-600 text-4xl">
+                  delete
+                </span>
+
+              </div>
+
+            </div>
+
+            <h2 className="mt-6 text-center text-2xl font-semibold text-primary">
+              Delete Hiking Plan?
+            </h2>
+
+            <p className="mt-3 text-center text-gray-500">
+              Are you sure you want to permanently delete this hiking plan?
+            </p>
+
+            <p className="mt-1 text-center text-sm text-red-500">
+              This action cannot be undone.
+            </p>
+
+            <div className="mt-8 flex justify-center gap-3">
+
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setPlanToDelete(null);
+                }}
+                className="rounded-xl border border-gray-300 px-5 py-3 font-semibold text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDelete}
+                className="rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
       </main>
     </div>
   );
