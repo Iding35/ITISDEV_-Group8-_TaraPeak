@@ -687,11 +687,11 @@ export default function Dashboard() {
           </p>
 
           <button
-            onClick={() => setShowTrailReport(!showTrailReport)}
-            className="rounded-xl bg-primary text-white px-5 py-3 font-semibold hover:opacity-90 transition"
-          >
-            {showTrailReport ? "Close Form" : "Write Report"}
-          </button>
+          onClick={() => setShowTrailReport(true)}
+          className="rounded-xl bg-primary text-white px-5 py-3 font-semibold hover:opacity-90 transition"
+        >
+          Write Report
+        </button>
 
         </div>
 
@@ -721,25 +721,46 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-        </div>
+      </div>
+      </div>
+      {showTrailReport && (
 
-          {showTrailReport && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
 
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8 mt-5">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
 
-          <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-2">
-            Trail Report
-          </h2>
+      <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6">
 
-          <p className="text-sm text-gray-500 mb-4">
-            Help other hikers by sharing trail conditions,
-            hazards, and your overall experience.
-          </p>
+      <div>
 
-          <form
-            onSubmit={submitReport}
-            className="space-y-6"
-          >
+      <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary">
+
+      <span className="material-symbols-outlined">
+      edit_note
+      </span>
+      Submit Trail Report
+      </h2>
+
+      <p className="text-sm text-gray-500 mt-1">
+      Help other hikers by sharing trail conditions and your experience.
+      </p>
+
+      </div>
+
+      <button
+      onClick={() => setShowTrailReport(false)}
+      className="material-symbols-outlined text-3xl text-gray-500 hover:text-primary"
+      >
+      close
+      </button>
+
+      </div>
+
+      <div className="overflow-y-auto max-h-[75vh] px-8 py-6">
+
+      <form
+      onSubmit={submitReport}
+      className="space-y-6">
 
             {/* Mountain */}
 
@@ -888,120 +909,122 @@ export default function Dashboard() {
             </button>
 
           </form>
+      </div>
 
-        </div>
-          )}
-        </div>
+      </div>
 
-        {showReportsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      </div>
 
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
+      )}
 
-            <div className="flex items-center justify-between border-b p-6">
+      {showReportsModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
 
-              <div>
-                <h2 className="text-2xl font-semibold text-primary">
-                  Your Trail Reports
-                </h2>
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
 
-                <p className="text-sm text-gray-500">
-                  {myReports.length} reports submitted
-                </p>
-              </div>
+        <div className="flex items-center justify-between border-b p-6">
 
-              <button
-                onClick={() => setShowReportsModal(false)}
-                className="material-symbols-outlined text-3xl text-gray-500 hover:text-primary"
-              >
-                close
-              </button>
+          <div>
+            <h2 className="text-2xl font-semibold text-primary">
+              Your Trail Reports
+            </h2>
 
-            </div>
-
-            <div className="overflow-y-auto max-h-[65vh] p-6 space-y-5">
-
-              {myReports.length === 0 ? (
-
-                <p className="text-center text-gray-500">
-                  No reports yet.
-                </p>
-
-              ) : (
-
-                myReports.map((report) => (
-                  <div
-                    key={report.report_id}
-                    className="rounded-2xl border border-gray-200 overflow-hidden"
-                  >
-
-                    <img
-                      src={report.image_url}
-                      alt={report.mountain_name}
-                      className="h-48 w-full object-cover"
-                    />
-
-                    <div className="p-5">
-
-                      <h3 className="text-xl font-semibold text-primary">
-                        {report.mountain_name}
-                      </h3>
-
-                      <p className="text-gray-500">
-                        {report.trail_name}
-                      </p>
-
-                      <div className="flex items-center gap-3 mt-3">
-
-                        <div className="flex">
-                          {Array.from({ length: 5 }).map((_, index) => (
-                            <span
-                              key={index}
-                              className={`material-symbols-outlined text-[20px] ${
-                                index < report.rating
-                                  ? "text-amber-500"
-                                  : "text-gray-300"
-                              }`}
-                            >
-                              star
-                            </span>
-                          ))}
-                        </div>
-
-                        <span className="font-semibold">
-                          {report.rating.toFixed(1)}
-                        </span>
-
-                        <span className="text-gray-300">•</span>
-
-                        <span className="text-gray-600">
-                          {report.condition}
-                        </span>
-
-                      </div>
-
-                      <p className="mt-4 text-gray-700">
-                        {report.comment}
-                      </p>
-
-                      <p className="mt-4 text-sm text-gray-400">
-                        {new Date(report.created_at).toLocaleDateString()}
-                      </p>
-
-                    </div>
-
-                  </div>
-                ))
-
-              )}
-
-            </div>
-
+            <p className="text-sm text-gray-500">
+              {myReports.length} reports submitted
+            </p>
           </div>
 
+          <button
+            onClick={() => setShowReportsModal(false)}
+            className="material-symbols-outlined text-3xl text-gray-500 hover:text-primary"
+          >
+            close
+          </button>
+
         </div>
+
+        <div className="overflow-y-auto max-h-[65vh] p-6 space-y-5">
+
+          {myReports.length === 0 ? (
+
+            <p className="text-center text-gray-500">
+              No reports yet.
+            </p>
+
+          ) : (
+
+            myReports.map((report) => (
+              <div
+                key={report.report_id}
+                className="rounded-2xl border border-gray-200 overflow-hidden"
+              >
+
+              <img
+                src={report.image_url}
+                alt={report.mountain_name}
+                className="h-48 w-full object-cover"
+              />
+
+              <div className="p-5">
+
+                <h3 className="text-xl font-semibold text-primary">
+                  {report.mountain_name}
+                </h3>
+
+                <p className="text-gray-500">
+                  {report.trail_name}
+                </p>
+
+                <div className="flex items-center gap-3 mt-3">
+
+                  <div className="flex">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <span
+                        key={index}
+                        className={`material-symbols-outlined text-[20px] ${
+                          index < report.rating
+                            ? "text-amber-500"
+                            : "text-gray-300"
+                        }`}
+                      >
+                        star
+                      </span>
+                    ))}
+                  </div>
+
+                  <span className="font-semibold">
+                    {report.rating.toFixed(1)}
+                  </span>
+
+                  <span className="text-gray-300">•</span>
+
+                  <span className="text-gray-600">
+                    {report.condition}
+                  </span>
+
+                </div>
+
+                <p className="mt-4 text-gray-700">
+                  {report.comment}
+                </p>
+
+                <p className="mt-4 text-sm text-gray-400">
+                  {new Date(report.created_at).toLocaleDateString()}
+                </p>
+
+              </div>
+
+            </div>
+          ))
+
         )}
 
+        </div>
+
+      </div>
+
+    </div>
+  )}
         {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
 
