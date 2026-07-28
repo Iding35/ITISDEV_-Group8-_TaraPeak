@@ -11,6 +11,8 @@ import {
   fetchNotifications,
   fetchPlanInvites,
   fetchPlans,
+  fetchMyTrailReports,
+  type MyTrailReport,
   fetchWaypoints,
   invitePlanMember, 
   markAllNotificationsRead,
@@ -152,6 +154,7 @@ export default function Dashboard() {
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [myReports, setMyReports] = useState<MyTrailReport[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [invites, setInvites] = useState<PlanInvite[]>([]);
   const [respondingId, setRespondingId] = useState<number | null>(null);
@@ -247,8 +250,14 @@ export default function Dashboard() {
     }
 
   useEffect(() => {
-    if (!user) return;
-    loadPlans();
+  if (!user) return;
+
+  loadPlans();
+
+  fetchMyTrailReports()
+    .then(setMyReports)
+    .catch(console.error);
+
   }, [user]);
 
   async function handleDelete(planId: number) {
@@ -650,60 +659,116 @@ export default function Dashboard() {
 
         <div className="max-w-3xl">
 
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
 
-  {/* Submit Report */}
+        {/* Submit Report */}
 
-  <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
 
-    <span className="material-symbols-outlined text-primary text-4xl mb-4">
-      edit_note
-    </span>
+          <span className="material-symbols-outlined text-primary text-4xl mb-4">
+            edit_note
+          </span>
 
-    <h2 className="text-2xl font-semibold text-primary mb-2">
-      Submit Report
-    </h2>
+          <h2 className="text-2xl font-semibold text-primary mb-2">
+            Submit Report
+          </h2>
 
-    <p className="text-sm text-gray-500 mb-6">
-      Share trail conditions, weather, hazards and tips for future hikers.
-    </p>
+          <p className="text-sm text-gray-500 mb-6">
+            Share trail conditions, weather, hazards and tips for future hikers.
+          </p>
 
-    <button
-      onClick={() => setShowTrailReport(!showTrailReport)}
-      className="rounded-xl bg-primary text-white px-5 py-3 font-semibold hover:opacity-90 transition"
-    >
-      {showTrailReport ? "Close Form" : "Write Report"}
-    </button>
+          <button
+            onClick={() => setShowTrailReport(!showTrailReport)}
+            className="rounded-xl bg-primary text-white px-5 py-3 font-semibold hover:opacity-90 transition"
+          >
+            {showTrailReport ? "Close Form" : "Write Report"}
+          </button>
 
-  </div>
+        </div>
 
-  {/* Your Reports */}
+        {/* Your Reports */}
 
-  <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
 
-    <span className="material-symbols-outlined text-primary text-4xl mb-4">
-      history
-    </span>
+          <span className="material-symbols-outlined text-primary text-4xl mb-4">
+            history
+          </span>
 
-    <h2 className="text-2xl font-semibold text-primary mb-2">
-      Your Reports
-    </h2>
+          <h2 className="text-2xl font-semibold text-primary mb-2">
+            Your Reports
+          </h2>
 
-    <p className="text-sm text-gray-500">
-      View all of the trail reports you've submitted.
-    </p>
+          <p className="text-sm text-gray-500">
+            View all of the trail reports you've submitted.
+          </p>
 
-    <div className="mt-6 rounded-xl bg-gray-50 border border-gray-200 p-4">
+          {myReports.length === 0 ? (
+          <div className="mt-6 rounded-xl bg-gray-50 border border-gray-200 p-4">
+            <p className="text-sm text-gray-500">
+              No reports submitted yet.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-4">
+            {myReports.map((report) => (
+              <div
+                key={report.report_id}
+                className="border border-gray-200 rounded-2xl overflow-hidden"
+              >
+                <img
+                  src={report.image_url}
+                  alt={report.mountain_name}
+                  className="w-full h-32 object-cover"
+                />
 
-      <p className="text-sm text-gray-500">
-        No reports submitted yet.
-      </p>
+                <div className="p-4">
 
-    </div>
+                  <h3 className="font-semibold text-primary text-lg">
+                    {report.mountain_name}
+                  </h3>
 
-  </div>
+                  <p className="text-sm text-gray-500">
+                    {report.trail_name ?? "Unknown Trail"}
+                  </p>
 
-</div>
+                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-0.5">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <span
+                      key={index}
+                      className={`material-symbols-outlined text-[18px] ${
+                        index < report.rating
+                          ? "text-amber-500"
+                          : "text-gray-300"
+                      }`}
+                    >
+                      star
+                    </span>
+                  ))}
+                </div>
+
+                    <span className="text-sm text-gray-500">
+                      {report.condition}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mt-3 line-clamp-2">
+                    {report.comment}
+                  </p>
+
+                  <p className="text-xs text-gray-400 mt-3">
+                    Submitted {new Date(report.created_at).toLocaleDateString()}
+                  </p>
+
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        </div>
+
+      </div>
 
           {showTrailReport && (
 

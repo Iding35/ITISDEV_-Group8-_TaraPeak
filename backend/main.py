@@ -171,6 +171,49 @@ def get_trail_checkpoints(route_waypoint_id: int):
     return [dict(row) for row in checkpoints]
 
 @app.get("/trail-reports/{mountain_id}")
+@app.get("/trail-reports/me")
+def get_my_trail_reports(
+    current_user: dict = Depends(get_current_user),
+):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute(
+        """
+        SELECT
+            tr.report_id,
+            tr.rating,
+            tr.condition,
+            tr.comment,
+            tr.created_at,
+
+            m.mountain_name,
+            m.image_url,
+
+            rw.name AS trail_name
+
+        FROM trail_reports tr
+
+        JOIN mountains m
+            ON tr.mountain_id = m.mountain_id
+
+        LEFT JOIN route_waypoints rw
+            ON tr.waypoint_id = rw.waypoint_id
+
+        WHERE tr.user_id = %s
+
+        ORDER BY tr.created_at DESC
+        """,
+        (current_user["user_id"],),
+    )
+
+    reports = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return [dict(r) for r in reports]
+
 def get_trail_reports(mountain_id: int):
     fetch_mountain(mountain_id)
 

@@ -492,6 +492,29 @@ export async function fetchTrailReports(mountainId: number): Promise<TrailReport
   return response.json();
 }
 
+export interface MyTrailReport {
+  report_id: number;
+  mountain_name: string;
+  image_url: string;
+  trail_name: string | null;
+  rating: number;
+  condition: string;
+  comment: string;
+  created_at: string;
+}
+
+export async function fetchMyTrailReports(): Promise<MyTrailReport[]> {
+  const response = await fetch(`${API_URL}/trail-reports/me`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw await extractError(response, "Could not load your trail reports");
+  }
+
+  return response.json();
+}
+
 export async function createTrailReport(
   mountainId: number,
   data: { waypoint_id?: number | null; rating: number; condition: string; comment: string },
