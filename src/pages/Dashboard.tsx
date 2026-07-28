@@ -558,10 +558,30 @@ export default function Dashboard() {
                           className="relative rounded-xl border border-secondary/20 bg-surface-container-lowest overflow-hidden shadow-sm"
                         >
                           <Link to={`/plans/${plan.plan_id}`} className="block">
+                          <div className="relative">
+
                             <div
-                              className="h-40 w-full bg-cover bg-center"
-                              style={{ backgroundImage: `url('/${plan.image_url}')` }}
+                              className="h-48 w-full bg-cover bg-center"
+                              style={{
+                                backgroundImage: `url('/${plan.image_url}')`,
+                              }}
                             />
+
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+
+                            <div className="absolute bottom-4 left-4">
+
+                              <h3 className="font-headline-md text-headline-md text-white">
+                                {plan.mountain_name}
+                              </h3>
+
+                              <p className="text-sm text-white/90">
+                                {plan.location}
+                              </p>
+
+                            </div>
+
+                          </div>
                             <div className="p-md flex flex-col gap-1">
                               <div className="flex items-center justify-between gap-2">
                                 <h3 className="font-headline-md text-headline-md text-primary">{plan.mountain_name}</h3>
@@ -572,8 +592,28 @@ export default function Dashboard() {
                                 )}
                               </div>
                               <p className="font-label-md text-label-md text-on-surface-variant">{plan.location}</p>
-                              <p className="text-sm text-primary"> {plan.trail_name} </p>
-                              <p className="font-label-md text-label-md text-secondary mt-1">{formatPlanDate(plan.date)}</p>
+                              <div className="flex items-center gap-2">
+
+                              <span className="material-symbols-outlined text-[18px] text-primary">
+                              hiking
+                              </span>
+
+                              <p className="text-sm text-primary">
+                                {plan.trail_name}
+                              </p>
+
+                            </div>
+                              <div className="flex items-center gap-2">
+
+                              <span className="material-symbols-outlined text-[18px] text-secondary">
+                                calendar_month
+                              </span>
+
+                              <p className="font-label-md text-label-md text-secondary">
+                                {formatPlanDate(plan.date)}
+                              </p>
+
+                            </div>
                               {displayNames.length > 0 && (
                                 <p className="font-label-md text-label-md text-on-surface-variant mt-1">
                                   With {displayNames.join(', ')}
@@ -610,34 +650,60 @@ export default function Dashboard() {
 
         <div className="max-w-3xl">
 
-          <button
-            onClick={() => setShowTrailReport(!showTrailReport)}
-            className="w-full bg-white rounded-3xl shadow-lg border border-gray-200 p-6 flex justify-between items-center hover:shadow-xl transition"
-          >
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
 
-            <div className="text-left">
+  {/* Submit Report */}
 
-              <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary mb-2">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined"
-                >
-                  edit_note
-                </span>
-                Submit Trail Report
-              </h2>
+  <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
 
-              <p className="text-sm text-gray-500 mb-4">
-                Share your hiking experience with the community.
-              </p>
+    <span className="material-symbols-outlined text-primary text-4xl mb-4">
+      edit_note
+    </span>
 
-              </div>
+    <h2 className="text-2xl font-semibold text-primary mb-2">
+      Submit Report
+    </h2>
 
-            <span className="text-3xl">
-              {showTrailReport ? "⌄" : "›"}
-            </span>
+    <p className="text-sm text-gray-500 mb-6">
+      Share trail conditions, weather, hazards and tips for future hikers.
+    </p>
 
-          </button>
+    <button
+      onClick={() => setShowTrailReport(!showTrailReport)}
+      className="rounded-xl bg-primary text-white px-5 py-3 font-semibold hover:opacity-90 transition"
+    >
+      {showTrailReport ? "Close Form" : "Write Report"}
+    </button>
+
+  </div>
+
+  {/* Your Reports */}
+
+  <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
+
+    <span className="material-symbols-outlined text-primary text-4xl mb-4">
+      history
+    </span>
+
+    <h2 className="text-2xl font-semibold text-primary mb-2">
+      Your Reports
+    </h2>
+
+    <p className="text-sm text-gray-500">
+      View all of the trail reports you've submitted.
+    </p>
+
+    <div className="mt-6 rounded-xl bg-gray-50 border border-gray-200 p-4">
+
+      <p className="text-sm text-gray-500">
+        No reports submitted yet.
+      </p>
+
+    </div>
+
+  </div>
+
+</div>
 
           {showTrailReport && (
 
