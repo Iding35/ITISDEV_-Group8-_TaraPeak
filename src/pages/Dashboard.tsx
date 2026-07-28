@@ -67,7 +67,6 @@ function formatRelative(timestamp: string): string {
   return `${Math.round(diffMinutes / 1440)}d ago`;
 }
 
-
 function InviteForm({ planId, onSent }: { planId: number; onSent: () => void }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
@@ -94,7 +93,7 @@ function InviteForm({ planId, onSent }: { planId: number; onSent: () => void }) 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-2 inline-flex items-center gap-1 font-label-md text-label-md text-primary hover:underline"
+        className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1.5 font-label-md text-label-md text-primary transition-colors hover:bg-primary/10"
       >
         <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
           person_add
@@ -105,8 +104,8 @@ function InviteForm({ planId, onSent }: { planId: number; onSent: () => void }) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-1.5">
-      <div className="flex gap-1.5">
+    <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2 rounded-xl border border-secondary/20 bg-surface-container-low p-3">
+      <div className="flex gap-2">
         <input
           type="email"
           required
@@ -116,18 +115,18 @@ function InviteForm({ planId, onSent }: { planId: number; onSent: () => void }) 
             setStatus('idle');
           }}
           placeholder="hiker@example.com"
-          className="min-w-0 flex-1 rounded-lg border border-secondary/20 px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+          className="min-w-0 flex-1 rounded-lg border border-secondary/20 bg-surface px-3 py-2 text-sm text-on-surface outline-none focus:ring-2 focus:ring-primary"
         />
         <button
           type="submit"
           disabled={status === 'sending'}
-          className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-label-md text-label-md text-on-primary disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-primary px-4 py-2 font-label-md text-label-md text-on-primary transition hover:opacity-90 disabled:opacity-50"
         >
           {status === 'sending' ? 'Sending…' : 'Send'}
         </button>
       </div>
-      {status === 'sent' && <p className="text-primary text-xs">Invite sent — pending until they accept.</p>}
-      {status === 'error' && error && <p className="text-error text-xs">{error}</p>}
+      {status === 'sent' && <p className="text-primary text-xs font-medium">Invite sent — pending until they accept.</p>}
+      {status === 'error' && error && <p className="text-error text-xs font-medium">{error}</p>}
     </form>
   );
 }
@@ -246,42 +245,39 @@ export default function Dashboard() {
     loadMountains();
   }, []);
 
-    function loadPlans() {
-      return fetchPlans()
-        .then(setPlans)
-        .catch(console.error);
-    }
+  function loadPlans() {
+    return fetchPlans()
+      .then(setPlans)
+      .catch(console.error);
+  }
 
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  loadPlans();
+    loadPlans();
 
-  fetchMyTrailReports()
-    .then(setMyReports)
-    .catch(console.error);
-
+    fetchMyTrailReports()
+      .then(setMyReports)
+      .catch(console.error);
   }, [user]);
 
   async function handleDelete() {
-  if (planToDelete === null) return;
+    if (planToDelete === null) return;
 
-  const previous = plans;
+    const previous = plans;
 
-  setPlans((current) =>
-    current.filter((p) => p.plan_id !== planToDelete)
-  );
+    setPlans((current) =>
+      current.filter((p) => p.plan_id !== planToDelete)
+    );
 
-  try {
-    await deletePlan(planToDelete);
-
-    setShowDeleteModal(false);
-    setPlanToDelete(null);
-
-  } catch {
-    setPlans(previous);
-    alert("Failed to delete hiking plan.");
-  }
+    try {
+      await deletePlan(planToDelete);
+      setShowDeleteModal(false);
+      setPlanToDelete(null);
+    } catch {
+      setPlans(previous);
+      alert("Failed to delete hiking plan.");
+    }
   }
 
   useEffect(() => {
@@ -294,17 +290,11 @@ export default function Dashboard() {
     async function loadTrails() {
       try {
         setLoadingTrails(true);
-
-        const data = await fetchWaypoints(
-          Number(selectedMountain)
-        );
-
+        const data = await fetchWaypoints(Number(selectedMountain));
         setWaypoints(data);
 
         if (data.length > 0) {
-          setSelectedWaypoint(
-            String(data[0].waypoint_id)
-          );
+          setSelectedWaypoint(String(data[0].waypoint_id));
         }
       } catch (err) {
         console.error(err);
@@ -360,19 +350,13 @@ export default function Dashboard() {
     }
   }
 
-  function Star({
-    index,
-  }: {
-    index: number;
-  }) {
+  function Star({ index }: { index: number }) {
     return (
       <button
         type="button"
         onClick={() => setRating(index)}
         className={`text-3xl transition hover:scale-110 ${
-          rating >= index
-            ? "text-yellow-400"
-            : "text-gray-300"
+          rating >= index ? "text-yellow-400" : "text-secondary/30"
         }`}
       >
         ★
@@ -381,30 +365,30 @@ export default function Dashboard() {
   }
 
   if (authLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
 
-  if (!user)
-    return <Navigate to="/login" replace />;
-    return (
+  return (
     <div className="min-h-screen bg-surface text-on-surface">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-margin-desktop py-lg">
-
-        <div className="mb-10">
-          <h1 className="font-display-lg text-display-lg text-primary animated-text leading-tight">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        
+        <div className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-secondary/10 pb-6">
+          <div>
+            <h1 className="font-display-lg text-display-lg text-primary animated-text leading-tight">
             My Dashboard
-          </h1>
-
-          <p className="text-on-surface/70 mt-2">
-            Welcome back, {user.first_name}! Ready to start your next adventure?
-          </p>
+            </h1>
+            <p className="text-on-surface/70 mt-2">
+              Welcome back, <span className="font-semibold text-on-surface">{user.first_name}</span>! Ready to start your next adventure?
+            </p>
+          </div>
         </div>
 
-        {/* Pending group invitations */}
+       
         {invites.length > 0 && (
-          <section className="max-w-3xl mb-6">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-primary mb-3">
-              <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
+          <section className="rounded-3xl border border-amber-200 bg-amber-50/60 p-6 shadow-sm mb-8">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-amber-900 mb-4">
+              <span aria-hidden="true" className="material-symbols-outlined text-[22px]">
                 group_add
               </span>
               Pending Invitations ({invites.length})
@@ -445,641 +429,471 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Activity alerts */}
-        {notifications.length > 0 && (
-          <section className="max-w-3xl mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
-                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
-                  notifications
+        {/* Main Content Layout: Left = Hiking Plans (2 cols in 1 row), Right = Activity Feed stacked above Trail Reports */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          
+          {/* Left Side: Hiking Plans (Taking 2 columns width in the 3-col grid) */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center justify-between mb-2 border-b border-secondary/10 pb-4">
+              <div>
+                
+                  <h2 className="text-3xl font-bold text-primary">
+                  My Hiking Plans
+                </h2>
+                <p className="text-sm text-on-surface-variant mt-1">
+                  View, manage, and share your upcoming hiking adventures.
+                </p>
+              </div>
+
+              {plans.length > 0 && (
+                <span className="rounded-full bg-primary/10 px-3.5 py-1 text-sm text-primary font-semibold">
+                  {plans.length} {plans.length === 1 ? "Plan" : "Plans"}
                 </span>
-                Activity
-                {unreadCount > 0 && (
-                  <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-white">
-                    {unreadCount}
-                  </span>
-                )}
-              </h2>
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleMarkAllRead}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Mark all read
-                </button>
               )}
             </div>
 
-            <ul className="flex flex-col gap-2">
-              {notifications.map((notification) => (
-                <li
-                  key={notification.notification_id}
-                  className={`flex items-start gap-3 rounded-2xl border p-4 transition-colors ${
-                    notification.is_read
-                      ? "border-gray-200 bg-white"
-                      : "border-primary/30 bg-primary/5"
-                  }`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-primary text-[20px] shrink-0"
-                  >
-                    {NOTIFICATION_ICONS[notification.type] ?? "notifications"}
-                  </span>
+            {plans.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-secondary/30 p-12 text-center bg-surface-container-low">
+                <span className="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">hiking</span>
+                <p className="font-body-md text-on-surface-variant">
+                  You don't have any hiking plans yet. Create or join one to get started!
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {plans.map((plan) => {
+                  const otherMembersFirstNames = plan.members
+                    .filter((m) => m.user_id !== user.user_id)
+                    .map((m) => (m.name ? m.name.split(' ')[0] : ''))
+                    .filter(Boolean);
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-gray-900 text-sm">{notification.title}</p>
-                      {!notification.is_read && (
-                        <span className="h-2 w-2 rounded-full bg-primary" aria-label="Unread" />
-                      )}
-                      <span className="text-xs text-gray-400">
-                        {formatRelative(notification.created_at)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-0.5">{notification.message}</p>
-                    {notification.reference_id && (
-                      <Link
-                        to={`/plans/${notification.reference_id}`}
-                        className="mt-1 inline-block text-xs font-semibold text-primary hover:underline"
-                      >
-                        View plan
-                      </Link>
-                    )}
-                  </div>
+                  const displayNames = otherMembersFirstNames.slice(0, 3);
 
-                  {!notification.is_read && (
-                    <button
-                      type="button"
-                      onClick={() => handleDismissNotification(notification.notification_id)}
-                      aria-label={`Mark "${notification.title}" as read`}
-                      className="text-gray-400 hover:text-primary transition-colors p-1"
+                  return (
+                    <div
+                      key={plan.plan_id}
+                      className="group relative flex flex-col justify-between rounded-3xl border border-secondary/20 bg-surface-container-lowest overflow-hidden shadow-sm transition-all hover:shadow-md"
                     >
-                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                        done
-                      </span>
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )} 
-        <section className="mb-10">
-          <div className="flex items-center justify-between mb-5">
-
-        <div>
-
-        <h2 className="font-headline-md text-headline-md text-primary">
-          My Hiking Plans
-        </h2>
-
-        <p className="text-sm text-on-surface-variant mt-1">
-          View, manage, and share your upcoming hiking adventures.
-        </p>
-
-      </div>
-
-      {plans.length > 0 && (
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-sm text-primary font-medium">
-          {plans.length} {plans.length === 1 ? "Plan" : "Plans"}
-        </span>
-      )}
-
-        </div>
-
-          {plans.length === 0 ? (
-
-            <p className="font-body-md text-on-surface-variant">
-              You don't have any hiking plans yet.
-            </p>
-
-           ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
-            {plans.map((plan) => {
-              // Filter out the currently logged-in user so we only show other members/organizer
-                      const otherMembersFirstNames = plan.members
-                        .filter((m) => m.user_id !== user.user_id)
-                        .map((m) => (m.name ? m.name.split(' ')[0] : ''))
-                        .filter(Boolean);
-          
-                   
-                      const displayNames = otherMembersFirstNames.slice(0, 3);
-          
-                      return (
-                        <div
-                          key={plan.plan_id}
-                          className="relative rounded-xl border border-secondary/20 bg-surface-container-lowest overflow-hidden shadow-sm"
-                        >
-                          <Link to={`/plans/${plan.plan_id}`} className="block">
-                          <div className="relative">
-
-                            <div
-                              className="h-48 w-full bg-cover bg-center"
-                              style={{
-                                backgroundImage: `url('/${plan.image_url}')`,
-                              }}
-                            />
-
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-
-                            <div className="absolute bottom-4 left-4">
-
-                              <h3 className="font-headline-md text-headline-md text-white">
+                      <div>
+                        <Link to={`/plans/${plan.plan_id}`} className="block">
+                          <div className="relative h-48 w-full bg-cover bg-center" style={{ backgroundImage: `url('/${plan.image_url}')` }}>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                            <div className="absolute bottom-4 left-4 right-4">
+                              <h3 className="font-headline-md text-xl font-bold text-white tracking-wide">
                                 {plan.mountain_name}
                               </h3>
-
-                              <p className="text-sm text-white/90">
+                              <p className="text-xs text-white/90 flex items-center gap-1 mt-0.5">
+                                <span className="material-symbols-outlined text-[14px]">location_on</span>
                                 {plan.location}
                               </p>
-
                             </div>
-
                           </div>
-                            <div className="p-md flex flex-col gap-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <h3 className="font-headline-md text-headline-md text-primary">{plan.mountain_name}</h3>
-                                {!plan.is_owner && (
-                                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-label-md text-[11px] text-primary">
-                                    Shared with you
-                                  </span>
-                                )}
-                              </div>
-                              <p className="font-label-md text-label-md text-on-surface-variant">{plan.location}</p>
-                              <div className="flex items-center gap-2">
 
-                              <span className="material-symbols-outlined text-[18px] text-primary">
-                              hiking
-                              </span>
-
-                              <p className="text-sm text-primary">
+                          <div className="p-5 flex flex-col gap-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold text-primary text-sm flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-[18px]">hiking</span>
                                 {plan.trail_name}
-                              </p>
-
-                            </div>
-                              <div className="flex items-center gap-2">
-
-                              <span className="material-symbols-outlined text-[18px] text-secondary">
-                                calendar_month
                               </span>
-
-                              <p className="font-label-md text-label-md text-secondary">
-                                {formatPlanDate(plan.date)}
-                              </p>
-
-                            </div>
-                              {displayNames.length > 0 && (
-                                <p className="font-label-md text-label-md text-on-surface-variant mt-1">
-                                  With {displayNames.join(', ')}
-                                  {otherMembersFirstNames.length > 3 ? '...' : ''}
-                                </p>
+                              {!plan.is_owner && (
+                                <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 font-label-md text-[11px] text-primary font-medium">
+                                  Shared with you
+                                </span>
                               )}
                             </div>
-                          </Link>
-          
-                          {plan.is_owner && (
-                            <div className="px-md pb-md">
-                              <InviteForm planId={plan.plan_id} onSent={loadPlans} />
+
+                            <div className="flex items-center gap-2 text-secondary">
+                              <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                              <p className="font-label-md text-xs font-medium">
+                                {formatPlanDate(plan.date)}
+                              </p>
                             </div>
-                          )}
-          
-                          {plan.is_owner && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPlanToDelete(plan.plan_id);
-                                setShowDeleteModal(true);
-                              }}
-                              aria-label={`Remove plan for ${plan.mountain_name}`}
-                              className="absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 text-on-surface-variant transition-colors hover:text-error"
-                            >
-                              <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
-                                delete
-                              </span>
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-           )}
-        </section>
 
-        <div className="max-w-3xl">
+                            {displayNames.length > 0 && (
+                              <p className="font-label-md text-xs text-on-surface-variant flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[16px]">group</span>
+                                With {displayNames.join(', ')}
+                                {otherMembersFirstNames.length > 3 ? '...' : ''}
+                              </p>
+                            )}
+                          </div>
+                        </Link>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                        {plan.is_owner && (
+                          <div className="px-5 pb-4">
+                            <InviteForm planId={plan.plan_id} onSent={loadPlans} />
+                          </div>
+                        )}
+                      </div>
 
-        {/* Submit Report */}
-
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
-
-          <span className="material-symbols-outlined text-primary text-4xl mb-4">
-            edit_note
-          </span>
-
-          <h2 className="text-2xl font-semibold text-primary mb-2">
-            Submit Report
-          </h2>
-
-          <p className="text-sm text-gray-500 mb-6">
-            Share trail conditions, weather, hazards and tips for future hikers.
-          </p>
-
-          <button
-          onClick={() => setShowTrailReport(true)}
-          className="rounded-xl bg-primary text-white px-5 py-3 font-semibold hover:opacity-90 transition"
-        >
-          Write Report
-        </button>
-
-        </div>
-
-        {/* Your Reports */}
-
-        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
-
-          <span className="material-symbols-outlined text-primary text-4xl mb-4">
-            history
-          </span>
-
-          <h2 className="text-2xl font-semibold text-primary mb-2">
-            Your Reports
-          </h2>
-
-          <p className="text-sm text-gray-500">
-            View all of the trail reports you've submitted.
-          </p>
-          
-          <div className="mt-8">
-          
-          <button
-              onClick={() => setShowReportsModal(true)}
-              className="rounded-xl bg-primary text-white px-5 py-3 font-semibold hover:opacity-90 transition"
-            >
-              View Reports
-            </button>
+                      {plan.is_owner && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPlanToDelete(plan.plan_id);
+                            setShowDeleteModal(true);
+                          }}
+                          aria-label={`Remove plan for ${plan.mountain_name}`}
+                          className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 text-on-surface-variant shadow-xs transition-colors hover:text-error hover:bg-surface"
+                        >
+                          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                            delete
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      </div>
-      </div>
-      {showTrailReport && (
 
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-
-      <div className="flex items-center justify-between border-b border-gray-200 px-8 py-6">
-
-      <div>
-
-      <h2 className="flex items-center gap-2 text-2xl font-semibold text-primary">
-
-      <span className="material-symbols-outlined">
-      edit_note
-      </span>
-      Submit Trail Report
-      </h2>
-
-      <p className="text-sm text-gray-500 mt-1">
-      Help other hikers by sharing trail conditions and your experience.
-      </p>
-
-      </div>
-
-      <button
-      onClick={() => setShowTrailReport(false)}
-      className="material-symbols-outlined text-3xl text-gray-500 hover:text-primary"
-      >
-      close
-      </button>
-
-      </div>
-
-      <div className="overflow-y-auto max-h-[75vh] px-8 py-6">
-
-      <form
-      onSubmit={submitReport}
-      className="space-y-6">
-
-            {/* Mountain */}
-
-            <div>
-              <label className="block text-sm text-gray-500 mb-2">
-                Mountain
-              </label>
-
-              <select
-                value={selectedMountain}
-                onChange={(e) =>
-                  setSelectedMountain(e.target.value)
-                }
-                disabled={loadingMountains}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-              >
-                <option value="">
-                  Select Mountain
-                </option>
-
-                {mountains.map((mountain) => (
-                  <option
-                    key={mountain.mountain_id}
-                    value={mountain.mountain_id}
+          {/* Right Side Panel: Activity Feed stacked above Trail Reports Panel */}
+          <div className="space-y-6">
+            
+            {/* Activity Feed Panel */}
+            <section className="rounded-3xl border border-secondary/20 bg-surface-container-lowest p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
+                  <span aria-hidden="true" className="material-symbols-outlined text-[22px]">
+                    notifications
+                  </span>
+                  Activity Feed
+                  {unreadCount > 0 && (
+                    <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-on-primary">
+                      {unreadCount}
+                    </span>
+                  )}
+                </h2>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    className="text-sm font-medium text-primary hover:underline"
                   >
-                    {mountain.mountain_name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                    Mark all read
+                  </button>
+                )}
+              </div>
 
-            {/* Trail */}
+              {notifications.length === 0 ? (
+                <p className="text-sm text-on-surface-variant py-4 text-center">No recent activity.</p>
+              ) : (
+                <ul className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
+                  {notifications.map((notification) => (
+                    <li
+                      key={notification.notification_id}
+                      className={`flex items-start gap-3.5 rounded-2xl border p-4 transition-colors ${
+                        notification.is_read
+                          ? "border-secondary/10 bg-surface"
+                          : "border-primary/30 bg-primary/5"
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="material-symbols-outlined text-primary text-[20px] shrink-0 mt-0.5"
+                      >
+                        {NOTIFICATION_ICONS[notification.type] ?? "notifications"}
+                      </span>
 
-            <div>
-              <label className="block text-sm text-gray-500 mb-2">
-                Trail
-              </label>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-on-surface text-sm">{notification.title}</p>
+                          {!notification.is_read && (
+                            <span className="h-2 w-2 rounded-full bg-primary" aria-label="Unread" />
+                          )}
+                          <span className="text-xs text-on-surface-variant/70 ml-auto">
+                            {formatRelative(notification.created_at)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-on-surface-variant mt-1">{notification.message}</p>
+                        {notification.reference_id && (
+                          <Link
+                            to={`/plans/${notification.reference_id}`}
+                            className="mt-2 inline-block text-xs font-semibold text-primary hover:underline"
+                          >
+                            View plan →
+                          </Link>
+                        )}
+                      </div>
 
-              <select
-                value={selectedWaypoint}
-                onChange={(e) =>
-                  setSelectedWaypoint(e.target.value)
-                }
-                disabled={
-                  !selectedMountain || loadingTrails
-                }
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-              >
-                <option value="">
-                  Select Trail
-                </option>
+                      {!notification.is_read && (
+                        <button
+                          type="button"
+                          onClick={() => handleDismissNotification(notification.notification_id)}
+                          aria-label={`Mark "${notification.title}" as read`}
+                          className="text-on-surface-variant/60 hover:text-primary transition-colors p-1 rounded-lg hover:bg-surface-container"
+                        >
+                          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                            done
+                          </span>
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
-                {waypoints.map((trail) => (
-                  <option
-                    key={trail.waypoint_id}
-                    value={trail.waypoint_id}
-                  >
-                    {trail.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Trail Reports Panel */}
+            <div className="rounded-3xl border border-secondary/20 bg-surface-container-lowest p-6 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <span className="material-symbols-outlined text-2xl">edit_note</span>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-primary">Trail Reports</h2>
+                    <p className="text-xs text-on-surface-variant">Contribute & check conditions</p>
+                  </div>
+                </div>
+                <p className="text-sm text-on-surface-variant mb-6 leading-relaxed">
+                  Share real-time trail conditions, weather updates, and hazards, or review your historical submissions to help the community.
+                </p>
+              </div>
 
-            {/* Condition */}
-
-            <div>
-              <label className="block text-sm text-gray-500 mb-2">
-                Trail Condition
-              </label>
-
-              <select
-                value={condition}
-                onChange={(e) =>
-                  setCondition(e.target.value)
-                }
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-              >
-                {CONDITIONS.map((item) => (
-                  <option
-                    key={item}
-                    value={item}
-                  >
-                    {item}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Rating */}
-
-            <div>
-              <label className="block text-sm text-gray-500 mb-2">
-                Rating
-              </label>
-
-              <div className="flex items-center gap-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    index={star}
-                  />
-                ))
-
-                }
-
-                <span className="ml-4 text-gray-500">
-                  {rating}/5
-                </span>
+              <div className="space-y-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTrailReport(true)}
+                  className="w-full rounded-xl bg-primary px-4 py-3 font-semibold text-on-primary transition hover:opacity-90 flex items-center justify-center gap-2 shadow-xs"
+                >
+                  <span className="material-symbols-outlined text-[20px]">add_circle</span>
+                  Write Report
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowReportsModal(true)}
+                  className="w-full rounded-xl border border-secondary/20 bg-surface px-4 py-3 font-semibold text-on-surface transition hover:bg-surface-container flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[20px]">history</span>
+                  View My Reports ({myReports.length})
+                </button>
               </div>
             </div>
 
-            {/* Description */}
-
-
-            <div>
-              <label className="block text-sm text-gray-500 mb-2">
-                Your Experience
-              </label>
-
-              <textarea
-                rows={6}
-                value={comment}
-                onChange={(e) =>
-                  setComment(e.target.value)
-                }
-                placeholder="Share trail conditions, hazards, weather, scenery, or anything future hikers should know..."
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700 focus:border-primary focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
-              />
-            </div>
-
-            {submitStatus === "success" && (
-              <p className="text-primary font-semibold text-sm">
-                Thanks! Your trail report was submitted.
-              </p>
-            )}
-            {submitStatus === "error" && submitError && (
-              <p className="text-red-600 text-sm">{submitError}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitStatus === "submitting"}
-              className="w-full bg-primary hover:opacity-90 transition text-white font-semibold rounded-xl py-4 disabled:opacity-50"
-            >
-              {submitStatus === "submitting" ? "Submitting…" : "Submit Trail Report"}
-            </button>
-
-          </form>
-      </div>
-
-      </div>
-
-      </div>
-
-      )}
-
-      {showReportsModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden">
-
-        <div className="flex items-center justify-between border-b p-6">
-
-          <div>
-            <h2 className="text-2xl font-semibold text-primary">
-              Your Trail Reports
-            </h2>
-
-            <p className="text-sm text-gray-500">
-              {myReports.length} reports submitted
-            </p>
           </div>
-
-          <button
-            onClick={() => setShowReportsModal(false)}
-            className="material-symbols-outlined text-3xl text-gray-500 hover:text-primary"
-          >
-            close
-          </button>
 
         </div>
 
-        <div className="overflow-y-auto max-h-[65vh] p-6 space-y-5">
+      </main>
 
-          {myReports.length === 0 ? (
-
-            <p className="text-center text-gray-500">
-              No reports yet.
-            </p>
-
-          ) : (
-
-            myReports.map((report) => (
-              <div
-                key={report.report_id}
-                className="rounded-2xl border border-gray-200 overflow-hidden"
-              >
-
-              <img
-                src={report.image_url}
-                alt={report.mountain_name}
-                className="h-48 w-full object-cover"
-              />
-
-              <div className="p-5">
-
-                <h3 className="text-xl font-semibold text-primary">
-                  {report.mountain_name}
-                </h3>
-
-                <p className="text-gray-500">
-                  {report.trail_name}
+      {/* Trail Report Modal */}
+      {showTrailReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-secondary/20 flex flex-col">
+            <div className="flex items-center justify-between border-b border-secondary/10 px-6 py-5 bg-surface-container-low">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-semibold text-primary">
+                  <span className="material-symbols-outlined">edit_note</span>
+                  Submit Trail Report
+                </h2>
+                <p className="text-xs text-on-surface-variant mt-0.5">
+                  Help other hikers by sharing trail conditions and your experience.
                 </p>
+              </div>
+              <button
+                onClick={() => setShowTrailReport(false)}
+                className="material-symbols-outlined text-2xl text-on-surface-variant hover:text-primary transition"
+              >
+                close
+              </button>
+            </div>
 
-                <div className="flex items-center gap-3 mt-3">
-
-                  <div className="flex">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <span
-                        key={index}
-                        className={`material-symbols-outlined text-[20px] ${
-                          index < report.rating
-                            ? "text-amber-500"
-                            : "text-gray-300"
-                        }`}
-                      >
-                        star
-                      </span>
+            <div className="overflow-y-auto p-6 flex-1">
+              <form onSubmit={submitReport} className="space-y-5">
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
+                    Mountain
+                  </label>
+                  <select
+                    value={selectedMountain}
+                    onChange={(e) => setSelectedMountain(e.target.value)}
+                    disabled={loadingMountains}
+                    className="w-full rounded-xl border border-secondary/20 bg-surface px-4 py-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                  >
+                    <option value="">Select Mountain</option>
+                    {mountains.map((mountain) => (
+                      <option key={mountain.mountain_id} value={mountain.mountain_id}>
+                        {mountain.mountain_name}
+                      </option>
                     ))}
-                  </div>
-
-                  <span className="font-semibold">
-                    {report.rating.toFixed(1)}
-                  </span>
-
-                  <span className="text-gray-300">•</span>
-
-                  <span className="text-gray-600">
-                    {report.condition}
-                  </span>
-
+                  </select>
                 </div>
 
-                <p className="mt-4 text-gray-700">
-                  {report.comment}
-                </p>
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
+                    Trail
+                  </label>
+                  <select
+                    value={selectedWaypoint}
+                    onChange={(e) => setSelectedWaypoint(e.target.value)}
+                    disabled={!selectedMountain || loadingTrails}
+                    className="w-full rounded-xl border border-secondary/20 bg-surface px-4 py-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                  >
+                    <option value="">Select Trail</option>
+                    {waypoints.map((trail) => (
+                      <option key={trail.waypoint_id} value={trail.waypoint_id}>
+                        {trail.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <p className="mt-4 text-sm text-gray-400">
-                  {new Date(report.created_at).toLocaleDateString()}
-                </p>
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
+                    Trail Condition
+                  </label>
+                  <select
+                    value={condition}
+                    onChange={(e) => setCondition(e.target.value)}
+                    className="w-full rounded-xl border border-secondary/20 bg-surface px-4 py-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition"
+                  >
+                    {CONDITIONS.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
+                    Rating
+                  </label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} index={star} />
+                    ))}
+                    <span className="ml-3 text-sm font-semibold text-on-surface-variant">
+                      {rating}/5
+                    </span>
+                  </div>
+                </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
+                    Your Experience
+                  </label>
+                  <textarea
+                    rows={5}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Share trail conditions, hazards, weather, scenery..."
+                    className="w-full rounded-xl border border-secondary/20 bg-surface px-4 py-3 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition resize-none"
+                  />
+                </div>
+
+                {submitStatus === "success" && (
+                  <p className="text-primary font-semibold text-sm">
+                    Thanks! Your trail report was submitted successfully.
+                  </p>
+                )}
+                {submitStatus === "error" && submitError && (
+                  <p className="text-error font-semibold text-sm">{submitError}</p>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-secondary/10">
+                  <button
+                    type="button"
+                    onClick={() => setShowTrailReport(false)}
+                    className="px-5 py-2.5 rounded-xl border border-secondary/20 bg-surface font-semibold text-on-surface-variant hover:bg-surface-container transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitStatus === "submitting"}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-on-primary font-semibold hover:opacity-90 transition disabled:opacity-50"
+                  >
+                    {submitStatus === "submitting" ? "Submitting..." : "Submit Report"}
+                  </button>
+                </div>
+              </form>
             </div>
-          ))
-
-        )}
-
+          </div>
         </div>
+      )}
 
-      </div>
-
-    </div>
-  )}
-        {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-
-          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
-
-            <div className="flex justify-center">
-
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-
-                <span className="material-symbols-outlined text-red-600 text-4xl">
-                  delete
-                </span>
-
+      {/* My Reports Modal */}
+      {showReportsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden border border-secondary/20 flex flex-col">
+            <div className="flex items-center justify-between border-b border-secondary/10 px-6 py-5 bg-surface-container-low">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-semibold text-primary">
+                  <span className="material-symbols-outlined">history</span>
+                  My Trail Reports ({myReports.length})
+                </h2>
+                <p className="text-xs text-on-surface-variant mt-0.5">
+                  Review the history of trail reports you have submitted.
+                </p>
               </div>
-
+              <button
+                onClick={() => setShowReportsModal(false)}
+                className="material-symbols-outlined text-2xl text-on-surface-variant hover:text-primary transition"
+              >
+                close
+              </button>
             </div>
 
-            <h2 className="mt-6 text-center text-2xl font-semibold text-primary">
-              Delete Hiking Plan?
-            </h2>
+            <div className="overflow-y-auto p-6 flex-1 space-y-4">
+              {myReports.length === 0 ? (
+                <p className="text-center text-on-surface-variant py-8">You haven't submitted any trail reports yet.</p>
+              ) : (
+                myReports.map((rep) => (
+                  <div key={rep.report_id} className="rounded-2xl border border-secondary/20 bg-surface-container-low p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-primary">{rep.mountain_name} — {rep.trail_name}</h3>
+                      <span className="text-xs text-on-surface-variant">{new Date(rep.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-semibold">{rep.condition}</span>
+                      <span className="text-yellow-500 font-bold">{"★".repeat(rep.rating)}{"☆".repeat(5 - rep.rating)}</span>
+                    </div>
+                    <p className="text-sm text-on-surface">{rep.comment}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-            <p className="mt-3 text-center text-gray-500">
+      {/* Delete Plan Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-secondary/20 p-6 space-y-4">
+            <h3 className="text-xl font-semibold text-primary">Delete Hiking Plan?</h3>
+            <p className="text-sm text-on-surface-variant">
               Are you sure you want to permanently delete this hiking plan?
             </p>
-
             <p className="mt-1 text-center text-sm text-red-500">
               This action cannot be undone.
             </p>
-
-            <div className="mt-8 flex justify-center gap-3">
-
+            <div className="flex justify-end gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => {
                   setShowDeleteModal(false);
                   setPlanToDelete(null);
                 }}
-                className="rounded-xl border border-gray-300 px-5 py-3 font-semibold text-gray-700 hover:bg-gray-100"
+                className="px-4 py-2 rounded-xl border border-secondary/20 bg-surface font-semibold text-on-surface-variant hover:bg-surface-container transition"
               >
                 Cancel
               </button>
-
               <button
+                type="button"
                 onClick={handleDelete}
-                className="rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
+                className="px-4 py-2 rounded-xl bg-error text-white font-semibold hover:opacity-90 transition"
               >
                 Delete
               </button>
-
             </div>
-
           </div>
-
         </div>
       )}
-      </main>
     </div>
   );
 }

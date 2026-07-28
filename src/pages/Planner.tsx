@@ -434,7 +434,7 @@ export default function Planner() {
 
         <p className="mt-8 text-sm text-on-surface-variant">
           Already planned something?{' '}
-          <Link to="/plans" className="text-primary font-semibold hover:underline">
+          <Link to="/dashboard" className="text-primary font-semibold hover:underline">
             View your saved plans
           </Link>
         </p>
