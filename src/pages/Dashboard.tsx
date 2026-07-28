@@ -6,14 +6,18 @@ import {
   acceptPlanInvite,
   createTrailReport,
   declinePlanInvite,
+  deletePlan,
   fetchMountains,
   fetchNotifications,
   fetchPlanInvites,
+  fetchPlans,
   fetchWaypoints,
+  invitePlanMember, 
   markAllNotificationsRead,
   markNotificationRead,
   type AppNotification,
   type Mountain,
+  type Plan,
   type PlanInvite,
   type Waypoint,
 } from "../api";
@@ -61,6 +65,71 @@ function formatRelative(timestamp: string): string {
   return `${Math.round(diffMinutes / 1440)}d ago`;
 }
 
+
+function InviteForm({ planId, onSent }: { planId: number; onSent: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus('sending');
+    setError(null);
+    try {
+      await invitePlanMember(planId, email);
+      setStatus('sent');
+      setEmail('');
+      onSent();
+    } catch (err) {
+      setStatus('error');
+      setError(err instanceof Error ? err.message : 'Could not send invite');
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 inline-flex items-center gap-1 font-label-md text-label-md text-primary hover:underline"
+      >
+        <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+          person_add
+        </span>
+        Invite someone
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-1.5">
+      <div className="flex gap-1.5">
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setStatus('idle');
+          }}
+          placeholder="hiker@example.com"
+          className="min-w-0 flex-1 rounded-lg border border-secondary/20 px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary"
+        />
+        <button
+          type="submit"
+          disabled={status === 'sending'}
+          className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-label-md text-label-md text-on-primary disabled:opacity-50"
+        >
+          {status === 'sending' ? 'Sending…' : 'Send'}
+        </button>
+      </div>
+      {status === 'sent' && <p className="text-primary text-xs">Invite sent — pending until they accept.</p>}
+      {status === 'error' && error && <p className="text-error text-xs">{error}</p>}
+    </form>
+  );
+}
+
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
 
@@ -82,6 +151,7 @@ export default function Dashboard() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [invites, setInvites] = useState<PlanInvite[]>([]);
   const [respondingId, setRespondingId] = useState<number | null>(null);
@@ -169,6 +239,35 @@ export default function Dashboard() {
 
     loadMountains();
   }, []);
+
+    function loadPlans() {
+      return fetchPlans()
+        .then(setPlans)
+        .catch(console.error);
+    }
+
+  useEffect(() => {
+    if (!user) return;
+    loadPlans();
+  }, [user]);
+
+  async function handleDelete(planId: number) {
+  const confirmed = window.confirm(
+    "Are you sure you want to delete this hiking plan?"
+  );
+
+  if (!confirmed) return;
+
+  const previous = plans;
+  setPlans((current) => current.filter((p) => p.plan_id !== planId));
+
+  try {
+    await deletePlan(planId);
+    } catch {
+      setPlans(previous);
+      alert("Failed to delete hiking plan.");
+    }
+  }
 
   useEffect(() => {
     if (!selectedMountain) {
@@ -282,8 +381,7 @@ export default function Dashboard() {
           </h1>
 
           <p className="text-on-surface/70 mt-2">
-            Welcome back, {user.first_name}! Share your latest hiking
-            experience to help fellow hikers.
+            Welcome back, {user.first_name}! Ready to start your next adventure?
           </p>
         </div>
 
@@ -412,7 +510,103 @@ export default function Dashboard() {
               ))}
             </ul>
           </section>
-        )}
+        )} 
+        <section className="mb-10">
+          <div className="flex items-center justify-between mb-5">
+
+        <div>
+
+        <h2 className="font-headline-md text-headline-md text-primary">
+          My Hiking Plans
+        </h2>
+
+        <p className="text-sm text-on-surface-variant mt-1">
+          View, manage, and share your upcoming hiking adventures.
+        </p>
+
+      </div>
+
+      {plans.length > 0 && (
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-sm text-primary font-medium">
+          {plans.length} {plans.length === 1 ? "Plan" : "Plans"}
+        </span>
+      )}
+
+        </div>
+
+          {plans.length === 0 ? (
+
+            <p className="font-body-md text-on-surface-variant">
+              You don't have any hiking plans yet.
+            </p>
+
+           ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter">
+            {plans.map((plan) => {
+              // Filter out the currently logged-in user so we only show other members/organizer
+                      const otherMembersFirstNames = plan.members
+                        .filter((m) => m.user_id !== user.user_id)
+                        .map((m) => (m.name ? m.name.split(' ')[0] : ''))
+                        .filter(Boolean);
+          
+                   
+                      const displayNames = otherMembersFirstNames.slice(0, 3);
+          
+                      return (
+                        <div
+                          key={plan.plan_id}
+                          className="relative rounded-xl border border-secondary/20 bg-surface-container-lowest overflow-hidden shadow-sm"
+                        >
+                          <Link to={`/plans/${plan.plan_id}`} className="block">
+                            <div
+                              className="h-40 w-full bg-cover bg-center"
+                              style={{ backgroundImage: `url('/${plan.image_url}')` }}
+                            />
+                            <div className="p-md flex flex-col gap-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <h3 className="font-headline-md text-headline-md text-primary">{plan.mountain_name}</h3>
+                                {!plan.is_owner && (
+                                  <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-label-md text-[11px] text-primary">
+                                    Shared with you
+                                  </span>
+                                )}
+                              </div>
+                              <p className="font-label-md text-label-md text-on-surface-variant">{plan.location}</p>
+                              <p className="text-sm text-primary"> {plan.trail_name} </p>
+                              <p className="font-label-md text-label-md text-secondary mt-1">{formatPlanDate(plan.date)}</p>
+                              {displayNames.length > 0 && (
+                                <p className="font-label-md text-label-md text-on-surface-variant mt-1">
+                                  With {displayNames.join(', ')}
+                                  {otherMembersFirstNames.length > 3 ? '...' : ''}
+                                </p>
+                              )}
+                            </div>
+                          </Link>
+          
+                          {plan.is_owner && (
+                            <div className="px-md pb-md">
+                              <InviteForm planId={plan.plan_id} onSent={loadPlans} />
+                            </div>
+                          )}
+          
+                          {plan.is_owner && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(plan.plan_id)}
+                              aria-label={`Remove plan for ${plan.mountain_name}`}
+                              className="absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 text-on-surface-variant transition-colors hover:text-error"
+                            >
+                              <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
+                                delete
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+           )}
+        </section>
 
         <div className="max-w-3xl">
 
