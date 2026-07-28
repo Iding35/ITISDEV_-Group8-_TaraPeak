@@ -273,7 +273,7 @@ VALUES
 -- Trail 1: Yangbew Main Trailhead Route (route_waypoint_id = 4)
 (2, 4, 1, 'Yangbew Trailhead Gate', 'The main jump-off point for Mount Yangbew near the barangay hall.', 120.6070, 16.4540, 1446, 'Easy', 0.0, 0.0),
 (2, 4, 2, 'Pine Grove Path', 'Early pine tree shade before the open grassland.', 120.6050, 16.4555, 1490, 'Easy', 0.2, 0.32),
-(2, 4, 3, 'Middle Slope Rest Stop', 'Small open clearing with view of La Trinidad valley.', 120.6010, 16.4570, 1530, 'Easy', 0.4, 0.87),
+(2, 4, 3, 'Tayawan Viewdeck Rest Stop', 'Small open clearing with view of La Trinidad valley.', 120.60210687432455, 16.460902637071587, 1530, 'Easy', 0.4, 0.87),
 (2, 4, 4, 'Yangbew Plateau Entry', 'Entry point onto the grassy upper summit plateau.', 120.5960, 16.4600, 1585, 'Easy', 0.8, 1.63),
 (2, 4, 5, 'Main Summit Marker', 'Main summit sign and horse riding area on the grassland.', 120.5940, 16.4622, 1609, 'Easy', 1.0, 2.02),
 
