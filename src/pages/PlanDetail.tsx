@@ -238,6 +238,7 @@ export default function PlanDetail() {
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
 
+  
   function loadPlan(preserveNotes = false) {
     if (!id) return Promise.resolve();
     return fetchPlanDetail(Number(id))
@@ -251,13 +252,31 @@ export default function PlanDetail() {
         try {
           const waypoints = await fetchWaypoints(planData.mountain_id);
           const targetWaypoint = waypoints.find(w => w.waypoint_id === planData.waypoint_id) || waypoints[0];
+          
           if (targetWaypoint) {
             const trailCps = await fetchTrailCheckpoints(targetWaypoint.waypoint_id);
-            const selectedCpId = planData.checkpoint_id;
-            const filteredCps = selectedCpId 
-              ? trailCps.filter(cp => cp.checkpoint_id <= selectedCpId || cp.sequence_order <= (trailCps.find(c => c.checkpoint_id === selectedCpId)?.sequence_order || 99))
-              : trailCps;
-            setCheckpoints(filteredCps.length ? filteredCps : trailCps);
+            
+            // Extract checkpoints specific to this plan if returned by detailed plan, 
+            // or filter the trail checkpoints based on the plan's target checkpoint sequence/id.
+            const planCheckpoints = (planData as any).checkpoints || [];
+            
+            if (planCheckpoints.length > 0) {
+              setCheckpoints(planCheckpoints);
+            } else {
+              const selectedCpId = planData.checkpoint_id ? Number(planData.checkpoint_id) : null;
+              let targetCp = selectedCpId ? trailCps.find(c => Number(c.checkpoint_id) === selectedCpId) : null;
+              
+              if (!targetCp && planData.checkpoint_name) {
+                targetCp = trailCps.find(c => c.name.toLowerCase() === planData.checkpoint_name.toLowerCase());
+              }
+
+              let filteredCps = trailCps;
+              if (targetCp && targetCp.sequence_order !== undefined) {
+                const targetSeq = targetCp.sequence_order;
+                filteredCps = trailCps.filter(cp => (cp.sequence_order ?? 0) <= targetSeq);
+              }
+              setCheckpoints(filteredCps);
+            }
           }
         } catch {
           setCheckpoints([]);
@@ -457,6 +476,34 @@ export default function PlanDetail() {
               />
             )}
 
+            {/* Chosen Trail Checkpoints Section */}
+            <section className="border-t border-secondary/10 pt-6">
+              <h2 className="font-medium font-headline-md text-primary mb-2"><strong>Chosen Trail: </strong><span className="font-medium">{plan.trail_name}</span></h2>
+              <p className="text-xs text-on-surface-variant mb-4">Checkpoints from the start point up to your selected target milestone.</p>
+              
+              {checkpoints.length > 0 ? (
+                <div className="relative pl-6 border-l-2 border-primary/30 space-y-4 my-2">
+                  {checkpoints.map((cp) => (
+                    <div key={cp.checkpoint_id} className="relative">
+                      <span className="absolute -left-[31px] bottom-0 flex h-4 w-4 items-center justify-center rounded-full bg-primary ring-4 ring-surface" />
+                      <div className="bg-surface-container-low p-3.5 rounded-xl border border-secondary/10">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-semibold text-sm text-on-surface">{cp.name}</h4>
+                          {cp.distance_from_start_km !== undefined && (
+                            <span className="text-xs font-medium text-primary">
+                              {cp.distance_from_start_km} km
+                            </span>
+                          )}
+                        </div>
+                        {cp.description && <p className="text-xs text-on-surface-variant mt-1">{cp.description}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-on-surface-variant italic">No intermediate checkpoints found for this trail section.</p>
+              )}
+            </section>
 
             {/* --- Organizer Notes / Announcements Board --- */}
             <section className="border-t border-secondary/10 pt-6">

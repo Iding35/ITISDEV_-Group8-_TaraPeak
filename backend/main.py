@@ -331,6 +331,8 @@ class CreatePlanRequest(BaseModel):
     ai_route_plan: Optional[str] = None
     gear: Optional[list[GearItemPayload]] = None
 
+    checkpoint_id: Optional[int] = None
+
 
 def _assert_trail_belongs_to_mountain(cursor, mountain_id: int, waypoint_id: int) -> dict:
     cursor.execute(
@@ -357,11 +359,11 @@ def _store_plan(payload: CreatePlanRequest, current_user: dict) -> dict:
         cursor.execute(
             """
             INSERT INTO plans (
-                user_id, mountain_id, waypoint_id, date,
+                user_id, mountain_id, waypoint_id, date, checkpoint_id,
                 ai_gear_summary, ai_difficulty_analysis, ai_safety_analysis, ai_route_plan
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING plan_id, user_id, mountain_id, waypoint_id, date,
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING plan_id, user_id, mountain_id, waypoint_id, date, checkpoint_id,
                       ai_gear_summary, ai_difficulty_analysis, ai_safety_analysis, ai_route_plan
             """,
             (
@@ -369,6 +371,7 @@ def _store_plan(payload: CreatePlanRequest, current_user: dict) -> dict:
                 payload.mountain_id,
                 payload.waypoint_id,
                 payload.date,
+                payload.checkpoint_id,  # ✅ Stored here
                 payload.ai_gear_summary,
                 payload.ai_difficulty_analysis,
                 payload.ai_safety_analysis,
@@ -395,6 +398,30 @@ def _store_plan(payload: CreatePlanRequest, current_user: dict) -> dict:
                 ],
             )
 
+        if payload.checkpoint_id:
+            cursor.execute(
+                """
+                SELECT checkpoint_id 
+                FROM trail_checkpoints 
+                WHERE route_waypoint_id = %s 
+                  AND checkpoint_id BETWEEN 1 AND %s
+                ORDER BY sequence_order ASC
+                """,
+                (payload.waypoint_id, payload.checkpoint_id),
+            )
+            checkpoints_to_insert = cursor.fetchall()
+
+            # ✅ Fixed typo from checkpoints_to_insets to checkpoints_to_insert
+            if checkpoints_to_insert:
+                cursor.executemany(
+                    """
+                    INSERT INTO plan_checkpoints (plan_id, checkpoint_id)
+                    VALUES (%s, %s)
+                    ON CONFLICT DO NOTHING
+                    """,
+                    [(plan["plan_id"], cp["checkpoint_id"]) for cp in checkpoints_to_insert],
+                )
+        
         conn.commit()
     except Exception:
         conn.rollback()
@@ -817,52 +844,61 @@ def get_plan_detail(plan_id: int, current_user: dict = Depends(get_current_user)
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
+    current_user_id = current_user["user_id"]
+
     # 1. Fetch plan & verify authorization
     cursor.execute(
         """
-       SELECT
-    p.plan_id,
-    p.date,
-    p.user_id AS owner_id,
-    p.waypoint_id,
-    p.updated_at,
-    p.ai_gear_summary,
-    p.ai_difficulty_analysis,
-    p.ai_safety_analysis,
-    p.ai_route_plan,
+        SELECT
+            p.plan_id,
+            p.date,
+            p.user_id AS owner_id,
+            p.waypoint_id,
+            p.checkpoint_id,
+            p.updated_at,
+            p.ai_gear_summary,
+            p.ai_difficulty_analysis,
+            p.ai_safety_analysis,
+            p.ai_route_plan,
 
-    m.mountain_id,
-    m.mountain_name,
-    m.location,
-    m.image_url,
-    m.terrain,
-    m.description,
-    m.hazards,
+            m.mountain_id,
+            m.mountain_name,
+            m.location,
+            m.image_url,
+            m.terrain,
+            m.description,
+            m.hazards,
 
-    rw.name AS trail_name,
-    rw.description AS trail_description,
-    rw.distance_from_start_km,
-    rw.estimated_time,
-    rw.difficulty,
+            rw.name AS trail_name,
+            rw.description AS trail_description,
+            rw.distance_from_start_km,
+            rw.estimated_time,
+            rw.difficulty,
 
-    (p.user_id = %s) AS is_owner
+            tc.name AS checkpoint_name,
+            tc.distance_from_start_km AS checkpoint_distance_km,
 
-FROM plans p
+            (p.user_id = %s) AS is_owner
 
-JOIN mountains m
-ON p.mountain_id = m.mountain_id
+        FROM plans p
 
-JOIN route_waypoints rw
-ON rw.waypoint_id = p.waypoint_id
+        JOIN mountains m
+        ON p.mountain_id = m.mountain_id
 
-LEFT JOIN plan_members pm
-ON p.plan_id = pm.plan_id
-AND pm.user_id = %s
+        JOIN route_waypoints rw
+        ON rw.waypoint_id = p.waypoint_id
 
-WHERE p.plan_id = %s
-AND (p.user_id = %s OR pm.user_id = %s)
+        LEFT JOIN trail_checkpoints tc
+        ON p.checkpoint_id = tc.checkpoint_id
+
+        LEFT JOIN plan_members pm
+        ON p.plan_id = pm.plan_id
+        AND pm.user_id = %s
+
+        WHERE p.plan_id = %s
+        AND (p.user_id = %s OR pm.user_id = %s)
         """,
-        (current_user["user_id"], current_user["user_id"], plan_id, current_user["user_id"], current_user["user_id"])
+        (current_user_id, current_user_id, plan_id, current_user_id, current_user_id)
     )
     plan = cursor.fetchone()
     if not plan:
@@ -913,6 +949,18 @@ AND (p.user_id = %s OR pm.user_id = %s)
         (plan_id,),
     )
     gear = cursor.fetchall()
+    
+    cursor.execute(
+        """
+        SELECT tc.checkpoint_id, tc.name, tc.description, tc.sequence_order, tc.latitude, tc.longitude, tc.distance_from_start_km
+        FROM plan_checkpoints pc
+        JOIN trail_checkpoints tc ON pc.checkpoint_id = tc.checkpoint_id
+        WHERE pc.plan_id = %s
+        ORDER BY tc.sequence_order ASC
+        """,
+        (plan_id,),
+    )
+    checkpoints = cursor.fetchall()
 
     cursor.close()
     conn.close()
@@ -920,8 +968,8 @@ AND (p.user_id = %s OR pm.user_id = %s)
     plan_dict = dict(plan)
     plan_dict["members"] = [dict(m) for m in members]
     plan_dict["gear"] = [dict(g) for g in gear]
+    plan_dict["checkpoints"] = [dict(cp) for cp in checkpoints]
     return plan_dict
-
 
 @app.delete("/plan-members/{plan_member_id}")
 def remove_plan_member(plan_member_id: int, current_user: dict = Depends(get_current_user)):

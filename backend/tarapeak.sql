@@ -112,7 +112,11 @@ CREATE TABLE IF NOT EXISTS plans (
         REFERENCES trail_checkpoints(checkpoint_id) 
         ON DELETE SET NULL
 );
-
+CREATE TABLE IF NOT EXISTS plan_checkpoints (
+            plan_id INT REFERENCES plans(plan_id) ON DELETE CASCADE,
+            checkpoint_id INT REFERENCES trail_checkpoints(checkpoint_id) ON DELETE CASCADE,
+            PRIMARY KEY (plan_id, checkpoint_id)
+        );
 CREATE TABLE IF NOT EXISTS plan_completed_checkpoints (
     plan_checkpoint_id SERIAL PRIMARY KEY,
     plan_id INT NOT NULL,

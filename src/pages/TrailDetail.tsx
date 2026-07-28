@@ -276,7 +276,7 @@ function SavePlanSection({
 
   // Check if selected date exceeds 2-week window
   const isBeyondTwoWeeks = date ? date > maxDateStr : false;
-
+  
   useEffect(() => {
     if (!date || !selectedTrail || !user || isBeyondTwoWeeks) {
       setWeather(null);
@@ -306,7 +306,7 @@ function SavePlanSection({
     setSaveStatus('saving');
     setSaveError(null);
     try {
-      await createPlan(mountainId, selectedTrail.waypoint_id, date);
+      await createPlan(mountainId, selectedTrail.waypoint_id, date, selectedCheckpoint?.checkpoint_id);
       setSaveStatus('saved');
     } catch (err) {
       setSaveStatus('error');
