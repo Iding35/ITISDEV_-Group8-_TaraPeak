@@ -305,29 +305,28 @@ VALUES
 (3, 8, 2, 'Camp 1 Shelter', 'First major resting point along the shaded pine forest section.', 120.89301825507796, 16.579809470696365, 2530, 'Easy', 1.0, 2.5),
 (3, 8, 3, 'Camp 2 (Mossy Forest Exit)', 'Campsite marking the boundary between mossy forest and dwarf bamboo grassland.', 120.90730, 16.58404, 2685, 'Easy', 3.0, 5.8),
 (3, 8, 4, 'Saddle Campsite', 'High-altitude campsite right below the summit peak.', 120.8959, 16.59735, 2840, 'Easy', 3.5, 6.8),
-(3, 8, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m) famous for the sea of clouds.', 120.9312, 16.6118, 2928, 'Easy', 4.0, 8.3),
+(3, 8, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m) famous for the sea of clouds.', 120.89879, 16.59772, 2928, 'Easy', 4.0, 8.3),
 
 -- Trail 2: Tawangan Trail (route_waypoint_id = 9)
 (3, 9, 1, 'Tawangan Barangay Hall', 'Jump-off point and registration area in Barangay Tawangan, Kabayan.', 120.9272, 16.6917, 1480, 'Hard', 0.0, 0.0),
 (3, 9, 2, 'Tawangan Mossy Forest Camp', 'Deep mossy forest campsite with high humidity, moss-covered trails, and leeches.', 120.9255, 16.6508, 2150, 'Hard', 5.0, 7.5),
 (3, 9, 3, 'Ta-aw Junction / Grassland', 'The transition area where the dense mossy forest opens up to the cold dwarf bamboo grassland.', 120.9290, 16.6210, 2710, 'Hard', 8.5, 11.5),
-(3, 9, 4, 'Mount Pulag Summit', 'Summit junction approaching from the northern mossy forest trail.', 120.9312, 16.6118, 2928, 'Hard', 10.0, 13.5),
+(3, 9, 4, 'Mount Pulag Summit', 'Summit junction approaching from the northern mossy forest trail.', 120.89879, 16.59772, 2928, 'Hard', 10.0, 13.5),
 
 -- Trail 3: Akiki Trail (route_waypoint_id = 10)
-(3, 10, 1, 'Akiki Jump-off (Ranger Station)', 'The official starting point of the Akiki Trail in Kabayan, Benguet.', 120.8992, 16.5975, 2260, 'Hard', 0.0, 0.0),
-(3, 10, 2, 'Eddet River (Camp 1)', 'A popular rest stop and campsite featuring a hanging bridge and freshwater source.', 120.9025, 16.5910, 1650, 'Hard', 3.0, 2.5),
-(3, 10, 3, 'Marlboro Country (Camp 2)', 'An open grassland campsite known for its scenic views and pine tree surroundings.', 120.9110, 16.5945, 2200, 'Hard', 7.0, 6.8),
-(3, 10, 4, 'Mossy Forest Entry', 'The start of the dense, moss-covered cloud forest with steep, challenging inclines.', 120.9185, 16.6020, 2450, 'Hard', 10.0, 10.5),
-(3, 10, 5, 'Saddle Campsite (Camp 3)', 'The final campsite located just below the summit, known for extreme cold temperatures.', 120.9302, 16.6111, 2840, 'Hard', 13.0, 14.2),
-(3, 10, 6, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m) offering the famous 360-degree sea of clouds view.', 120.9312, 16.6118, 2928, 'Hard', 14.0, 15.4),
-(3, 10, 7, 'Ambangeg Trailhead Exit', 'The final exit point at the Ambangeg Ranger Station after completing the full traverse.', 120.8875, 16.582778, 2250, 'Moderate', 17.5, 20.4),
+(3, 10, 1, 'Akiki Jump-off (Ranger Station)', 'The official starting point of the Akiki Trail in Kabayan, Benguet.', 120.84014, 16.61011, 2260, 'Hard', 0.0, 0.0),
+(3, 10, 2, 'Eddet Campsite', 'A popular rest stop and campsite featuring a hanging bridge and freshwater source.', 120.86420, 16.60630, 1650, 'Hard', 3.0, 2.5),
+(3, 10, 3, 'Marlboro Campsite', 'An open grassland campsite known for its scenic views and pine tree surroundings.', 120.87838, 16.60403, 2200, 'Hard', 7.0, 6.8),
+(3, 10, 4, 'Viewpoint Halsema Highway', 'A high-altitude vantage point showcasing distant mountain ridges, deep valleys, and sweeping sights.', 120.87838, 16.60403, 2450, 'Hard', 10.0, 10.5),
+(3, 10, 5, 'Pulag Saddle Camp', 'The final campsite located just below the summit, known for extreme cold temperatures.', 120.89589, 16.59735, 2840, 'Hard', 13.0, 14.2),
+(3, 10, 6, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m) offering the famous 360-degree sea of clouds view.', 120.89879, 16.59772, 2928, 'Hard', 14.0, 15.4),
 
 -- Trail 4: Ambaguio Trail (route_waypoint_id = 11)
 (3, 11, 1, 'Ambaguio Jump-off (Poblacion)', 'Starting point and registration center in Poblacion, Ambaguio, Nueva Vizcaya.', 121.0235, 16.5381, 1100, 'Hard', 0.0, 0.0),
 (3, 11, 2, 'Upper Napo Rest Stop', 'First major resting point along the challenging mossy forest ridgeline.', 120.9850, 16.5495, 1850, 'Hard', 4.5, 11.5),
 (3, 11, 3, 'Lusod Village', 'A remote, high-altitude mountain village serving as the primary overnight campsite for day one.', 120.9620, 16.5640, 1920, 'Hard', 7.5, 16.0),
 (3, 11, 4, 'Bantay Lakay Pine Ridge', 'A scenic, open pine ridge trail presenting rolling hills and steep climbs.', 120.9415, 16.5855, 2350, 'Hard', 11.0, 21.5),
-(3, 11, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m), approaching directly from the eastern Nueva Vizcaya slope.', 120.9312, 16.6118, 2928, 'Hard', 14.0, 24.5);
+(3, 11, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m), approaching directly from the eastern Nueva Vizcaya slope.', 120.89879, 16.59772, 2928, 'Hard', 14.0, 24.5);
 
 -- USERS
 INSERT INTO users (first_name, last_name, username, email, password, hiker_experience, role) VALUES
