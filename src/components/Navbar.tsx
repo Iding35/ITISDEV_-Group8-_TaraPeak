@@ -52,15 +52,6 @@ function MountainIcon() {
   );
 }
 
-function CalendarIcon() {
-  return (
-    <svg {...iconProps}>
-      <rect x="3" y="5" width="18" height="16" rx="2.5" />
-      <path d="M8 3v4M16 3v4M3 10.5h18" />
-    </svg>
-  );
-}
-
 function BellIcon() {
   return (
     <svg {...iconProps}>
@@ -95,11 +86,6 @@ const NAV_ITEMS: { to: string; label: string; icon: ReactNode }[] = [
   
 ];
 
-/**
- * True while the user is scrolling down past the bar, which collapses each
- * nav item to its icon. Any upward scroll (or returning to the top) expands
- * the labels again. The bar itself never moves.
- */
 function useCompactNav() {
   const [compact, setCompact] = useState(false);
   const lastY = useRef(0);
@@ -137,8 +123,6 @@ function MountainWordmark() {
     <img
       src="/logo-tarapeak.png"
       alt="TaraPeak"
-      // Grows from the left edge so the mark stays pinned to the page margin
-      // instead of creeping into it. Transform only, so nothing reflows.
       className="h-11 w-auto origin-left object-contain transition-transform duration-200 ease-out group-hover:scale-105 group-focus-visible:scale-105 motion-reduce:transform-none motion-reduce:transition-none"
     />
   );
@@ -239,10 +223,6 @@ function NavLink({
         </span>
       </Link>
 
-      {/* Redundant while the label is visible, so it is suppressed from md up
-          whenever the nav is expanded. Only one of the two conflicting rules is
-          ever emitted: Tailwind resolves same-specificity classes by its own
-          output order, not by the order they appear in this string. */}
       <span
         role="tooltip"
         className={`${TOOLTIP} ${

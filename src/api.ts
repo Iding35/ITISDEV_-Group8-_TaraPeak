@@ -216,6 +216,14 @@ export interface MountainReportSummary {
   latest_report?: string;
 }
 
+export interface MostTakenTrail {
+  mountain_id: number;
+  mountain_name: string;
+  trail_name: string;
+  total_completed_hikes: number;
+  most_taken_checkpoint: string | null;
+}
+
 // Defaults to port 8000. Override with VITE_API_URL in a .env file when that
 // port is taken by another project on your machine.
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
@@ -631,3 +639,10 @@ export async function fetchReportsByMountain(): Promise<MountainReportSummary[]>
   return res.json();
 }
 
+export async function fetchMostTakenTrails(): Promise<MostTakenTrail[]> {
+  const response = await fetch(`${API_URL}/analytics/most-taken-trails`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not load completed trail analytics');
+  return response.json();
+}

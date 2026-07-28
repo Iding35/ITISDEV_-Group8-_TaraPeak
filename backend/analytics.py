@@ -148,3 +148,37 @@ def get_all_users(admin: dict = Depends(require_admin)):
     cursor.close()
     conn.close()
     return users
+
+@router.get("/most-taken-trails")
+def get_most_taken_trails(admin: dict = Depends(require_admin)):
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute("""
+        SELECT 
+            m.mountain_id,
+            m.mountain_name, 
+            COALESCE(rw.name, 'General Trail') AS trail_name,
+            COUNT(p.plan_id) AS total_completed_hikes,
+            (
+                SELECT tc.name 
+                FROM plan_completed_checkpoints pcp2
+                JOIN plans p2 ON pcp2.plan_id = p2.plan_id
+                JOIN trail_checkpoints tc ON pcp2.checkpoint_id = tc.checkpoint_id
+                WHERE p2.mountain_id = m.mountain_id 
+                  AND (p2.waypoint_id = rw.waypoint_id OR (p2.waypoint_id IS NULL AND rw.waypoint_id IS NULL))
+                  AND p2.is_completed = true
+                GROUP BY tc.name
+                ORDER BY COUNT(pcp2.checkpoint_id) DESC
+                LIMIT 1
+            ) AS most_taken_checkpoint
+        FROM plans p
+        JOIN mountains m ON p.mountain_id = m.mountain_id
+        LEFT JOIN route_waypoints rw ON p.waypoint_id = rw.waypoint_id
+        WHERE p.is_completed = true
+        GROUP BY m.mountain_id, m.mountain_name, rw.waypoint_id, rw.name
+        ORDER BY total_completed_hikes DESC;
+    """)
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [dict(row) for row in results]
