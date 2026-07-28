@@ -245,25 +245,25 @@ VALUES
 
 -- Trail 1: Ambacao Paway Ridge Traverse (route_waypoint_id = 1)
 (1, 1, 1, 'Ampucao Entry Gate', 'Starting point near Philex Road heading up to Ambacao Paway.', 120.6358, 16.2947, 1520, 'Easy', 0.0, 0.0),
-(1, 1, 2, 'Pine Grove Rest Area', 'Shaded pine area along the initial incline.', 120.6380, 16.2970, 1580, 'Easy', 0.2, 0.8),
-(1, 1, 3, 'Ambacao Ridge Viewpoint', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6410, 16.3010, 1680, 'Easy', 0.8, 2.1),
-(1, 1, 4, 'Grassland Slope', 'Gentle slope running parallel to the main ridge line.', 120.6435, 16.3035, 1720, 'Easy', 1.2, 3.0),
-(1, 1, 5, 'Paway High Point', 'Summit ridge point of the Ambacao section.', 120.6471, 16.3060, 1788, 'Easy', 1.8, 4.2),
+(1, 1, 2, 'Pine Grove Rest Area', 'Shaded pine area along the initial incline.', 120.6380, 16.2970, 1580, 'Easy', 0.2, 0.43),
+(1, 1, 3, 'Ambacao Ridge Viewpoint', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6410, 16.3010, 1680, 'Easy', 0.5, 1.12),
+(1, 1, 4, 'Grassland Slope', 'Gentle slope running parallel to the main ridge line.', 120.6435, 16.3035, 1720, 'Easy', 0.8, 1.60),
+(1, 1, 5, 'Paway High Point', 'Summit ridge point of the Ambacao section.', 120.6471, 16.3060, 1788, 'Easy', 1.2, 2.19),
 
 -- Trail 2: Ampucao Out-and-Back Trail (route_waypoint_id = 2)
 (1, 2, 1, 'Ampucao Barangay Hall', 'Main registration and guide assembly hall.', 120.6550, 16.3253, 1497, 'Easy', 0.0, 0.0),
-(1, 2, 2, 'Totomtombek Rest Stop', 'First covered rest shelter surrounded by Benguet pines.', 120.6482, 16.3218, 1552, 'Easy', 0.3, 1.0),
-(1, 2, 3, 'Corral Rock Formation', 'Distinct rock outcrop along the ridge trail.', 120.6475, 16.3130, 1603, 'Easy', 0.8, 2.0),
-(1, 2, 4, 'Ambanao Paway Peak', 'Grassland peak with wide open views of Benguet.', 120.6471, 16.3060, 1788, 'Easy', 1.5, 3.6),
-(1, 2, 5, 'Ampucao Turnaround Point', 'Popular midpoint turnaround spot for shorter day hikes.', 120.6410, 16.3010, 1750, 'Easy', 2.0, 4.5),
+(1, 2, 2, 'Totomtombek Rest Stop', 'First covered rest shelter surrounded by Benguet pines.', 120.6482, 16.3218, 1552, 'Easy', 0.3, 1.03),
+(1, 2, 3, 'Corral Rock Formation', 'Distinct rock outcrop along the ridge trail.', 120.6475, 16.3130, 1603, 'Easy', 0.8, 2.26),
+(1, 2, 4, 'Ambanao Paway Peak', 'Grassland peak with wide open views of Benguet.', 120.6471, 16.3060, 1788, 'Easy', 1.3, 3.23),
+(1, 2, 5, 'Ampucao Turnaround Point', 'Popular midpoint turnaround spot for shorter day hikes.', 120.6410, 16.3010, 1750, 'Easy', 1.8, 4.30),
 
 -- Trail 3: Mount Ulap Eco-Trail (route_waypoint_id = 3)
 (1, 3, 1, 'Ampucao Trailhead', 'Starting jump-off point at Barangay Ampucao registration hall.', 120.6550, 16.3253, 1497, 'Easy', 0.0, 0.0),
-(1, 3, 2, 'Totomtombek Rest Stop', 'First resting shelter surrounded by Benguet pine trees.', 120.6482, 16.3218, 1559, 'Easy', 0.3, 1.2),
-(1, 3, 3, 'Ambanao Paway Ridge', 'First major peak with rolling grasslands and scenic vistas.', 120.6471, 16.3060, 1788, 'Easy', 1.5, 3.6),
-(1, 3, 4, 'Gungal Rock', 'The iconic cliff-side rock formation and popular photo stop.', 120.6368, 16.2950, 1814, 'Moderate', 3.0, 5.4),
-(1, 3, 5, 'Mount Ulap Summit', 'Highest point along the trail offering 360-degree Cordillera views.', 120.6310, 16.2900, 1846, 'Moderate', 4.0, 6.5),
-(1, 3, 6, 'Sta. Fe Exit', 'End of the traverse trail leading down to hanging bridges.', 120.6215, 16.2810, 1277, 'Moderate', 6.0, 9.4),
+(1, 3, 2, 'Totomtombek Rest Stop', 'First resting shelter surrounded by Benguet pine trees.', 120.6482, 16.3218, 1559, 'Easy', 0.3, 1.03),
+(1, 3, 3, 'Ambanao Paway Ridge', 'First major peak with rolling grasslands and scenic vistas.', 120.6471, 16.3060, 1788, 'Easy', 1.3, 3.23),
+(1, 3, 4, 'Gungal Rock', 'The iconic cliff-side rock formation and popular photo stop.', 120.6368, 16.2950, 1814, 'Moderate', 2.3, 5.29),
+(1, 3, 5, 'Mount Ulap Summit', 'Highest point along the trail offering 360-degree Cordillera views.', 120.6310, 16.2900, 1846, 'Moderate', 3.0, 6.33),
+(1, 3, 6, 'Sta. Fe Exit', 'End of the traverse trail leading down to hanging bridges.', 120.6215, 16.2810, 1277, 'Moderate', 4.5, 8.11),
 
 
 -- ==========================================================
@@ -272,58 +272,63 @@ VALUES
 
 -- Trail 1: Yangbew Main Trailhead Route (route_waypoint_id = 4)
 (2, 4, 1, 'Yangbew Trailhead Gate', 'The main jump-off point for Mount Yangbew near the barangay hall.', 120.6070, 16.4540, 1446, 'Easy', 0.0, 0.0),
-(2, 4, 2, 'Pine Grove Path', 'Early pine tree shade before the open grassland.', 120.6050, 16.4555, 1490, 'Easy', 0.2, 0.6),
-(2, 4, 3, 'Middle Slope Rest Stop', 'Small open clearing with view of La Trinidad valley.', 120.6010, 16.4570, 1530, 'Easy', 0.5, 1.2),
-(2, 4, 4, 'Yangbew Plateau Entry', 'Entry point onto the grassy upper summit plateau.', 120.5960, 16.4600, 1585, 'Easy', 0.8, 2.2),
-(2, 4, 5, 'Main Summit Marker', 'Main summit sign and horse riding area on the grassland.', 120.5940, 16.4622, 1609, 'Easy', 1.0, 3.2),
+(2, 4, 2, 'Pine Grove Path', 'Early pine tree shade before the open grassland.', 120.6050, 16.4555, 1490, 'Easy', 0.2, 0.32),
+(2, 4, 3, 'Middle Slope Rest Stop', 'Small open clearing with view of La Trinidad valley.', 120.6010, 16.4570, 1530, 'Easy', 0.4, 0.87),
+(2, 4, 4, 'Yangbew Plateau Entry', 'Entry point onto the grassy upper summit plateau.', 120.5960, 16.4600, 1585, 'Easy', 0.8, 1.63),
+(2, 4, 5, 'Main Summit Marker', 'Main summit sign and horse riding area on the grassland.', 120.5940, 16.4622, 1609, 'Easy', 1.0, 2.02),
 
 -- Trail 2: Grassland Ridge Trail (route_waypoint_id = 5)
 (2, 5, 1, 'Grassland Ridge Start', 'Starting point along the eastern open ridge slope.', 120.5906, 16.4580, 1510, 'Easy', 0.0, 0.0),
-(2, 5, 2, 'Lower Meadow Walk', 'Gentle trail section walking across green pasture land.', 120.5915, 16.4590, 1535, 'Easy', 0.2, 0.5),
-(2, 5, 3, 'East Viewpoint Hill', 'Scenic hill overlook facing eastern mountain ranges.', 120.5928, 16.4600, 1570, 'Easy', 0.4, 0.9),
-(2, 5, 4, 'Upper Ridge Junction', 'Junction joining the main summit trail on the ridge.', 120.5940, 16.4618, 1600, 'Easy', 0.6, 1.2),
+(2, 5, 2, 'Lower Meadow Walk', 'Gentle trail section walking across green pasture land.', 120.5915, 16.4590, 1535, 'Easy', 0.1, 0.18),
+(2, 5, 3, 'East Viewpoint Hill', 'Scenic hill overlook facing eastern mountain ranges.', 120.5928, 16.4600, 1570, 'Easy', 0.2, 0.39),
+(2, 5, 4, 'Upper Ridge Junction', 'Junction joining the main summit trail on the ridge.', 120.5940, 16.4618, 1600, 'Easy', 0.4, 0.67),
 
 -- Trail 3: Rock Formation Viewpoint Trail (route_waypoint_id = 6)
 (2, 6, 1, 'Rock Formation Trailhead', 'Starting point near the northern rocky approaches.', 120.5925, 16.4605, 1560, 'Easy', 0.0, 0.0),
-(2, 6, 2, 'Bouldering Outcrop', 'Scattered limestone rock formations ideal for quick photo stops.', 120.5932, 16.4612, 1585, 'Easy', 0.2, 0.8),
-(2, 6, 3, 'Valley Viewpoint Rock', 'The highest rock cluster offering clear views of La Trinidad Valley.', 120.5938, 16.4618, 1602, 'Easy', 0.4, 1.5),
-(2, 6, 4, 'Summit Plateau Connector', 'Short grassy path connecting the rock formations to the main summit.', 120.5940, 16.4622, 1609, 'Easy', 0.6, 2.3),
+(2, 6, 2, 'Bouldering Outcrop', 'Scattered limestone rock formations ideal for quick photo stops.', 120.5932, 16.4612, 1585, 'Easy', 0.1, 0.13),
+(2, 6, 3, 'Valley Viewpoint Rock', 'The highest rock cluster offering clear views of La Trinidad Valley.', 120.5938, 16.4618, 1602, 'Easy', 0.2, 0.24),
+(2, 6, 4, 'Summit Plateau Connector', 'Short grassy path connecting the rock formations to the main summit.', 120.5940, 16.4622, 1609, 'Easy', 0.3, 0.30),
 
 -- Trail 4: Yangbew Summit Mix Route (route_waypoint_id = 7)
 (2, 7, 1, 'Tawang Base Jump-off', 'Main registration and parking area at the base of Mount Yangbew.', 120.6070, 16.4540, 1446, 'Easy', 0.0, 0.0),
-(2, 7, 2, 'Pine Forest Pass', 'Shaded woodland trail connecting the lower valley to the upper ridge.', 120.6035, 16.4565, 1515, 'Easy', 0.3, 0.9),
-(2, 7, 3, 'Rock Formation Overlook', 'Natural limestone outcrop offering scenic photo spots over La Trinidad.', 120.5980, 16.4600, 1565, 'Easy', 0.6, 1.8),
-(2, 7, 4, 'Mount Yangbew Summit Plateau', 'The main summit area with 360-degree views of Baguio and La Trinidad Valley.', 120.5940, 16.4622, 1609, 'Easy', 0.9, 2.6),
-(2, 7, 5, 'Grassland Ridge Descent', 'Open grassland pasture trail descending back towards the Tawang exit.', 120.5910, 16.4585, 1520, 'Easy', 1.1, 3.3),
-
+(2, 7, 2, 'Pine Forest Pass', 'Shaded woodland trail connecting the lower valley to the upper ridge.', 120.6035, 16.4565, 1515, 'Easy', 0.3, 0.56),
+(2, 7, 3, 'Rock Formation Overlook', 'Natural limestone outcrop offering scenic photo spots over La Trinidad.', 120.5980, 16.4600, 1565, 'Easy', 0.7, 1.40),
+(2, 7, 4, 'Mount Yangbew Summit Plateau', 'The main summit area with 360-degree views of Baguio and La Trinidad Valley.', 120.5940, 16.4622, 1609, 'Easy', 1.0, 1.99),
+(2, 7, 5, 'Grassland Ridge Descent', 'Open grassland pasture trail descending back towards the Tawang exit.', 120.5910, 16.4585, 1520, 'Easy', 1.3, 2.62),
 
 -- ==========================================================
 -- MOUNT PULAG (mountain_id = 3)
 -- ==========================================================
 
 -- Trail 1: Ambangeg Trail (route_waypoint_id = 8)
-(3, 8, 1, 'Babadak Ranger Station', 'Main jump-off center for registration, guides, and briefing.', 120.8804, 16.5722, 2400, 'Easy', 0.0, 0.0),
-(3, 8, 2, 'Camp 1 Shelter', 'First major resting point along the shaded pine forest section.', 120.8905, 16.5815, 2577, 'Easy', 1.0, 2.5),
-(3, 8, 3, 'Camp 2 (Mossy Forest Exit)', 'Campsite marking the boundary between mossy forest and dwarf bamboo grassland.', 120.8982, 16.5910, 2690, 'Moderate', 3.0, 5.2),
-(3, 8, 4, 'Saddle Campsite', 'High-altitude campsite right below the summit peak.', 120.8990, 16.5960, 2800, 'Moderate', 4.0, 7.0),
-(3, 8, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m) famous for the sea of clouds.', 120.8992, 16.5975, 2928, 'Moderate', 4.5, 8.0),
+(3, 8, 1, 'Babadak Ranger Station', 'Main jump-off center for registration, guides, and briefing.', 120.8988, 16.5492, 2400, 'Easy', 0.0, 0.0),
+(3, 8, 2, 'Camp 1 Shelter', 'First major resting point along the shaded pine forest section.', 120.89301825507796, 16.579809470696365, 2530, 'Easy', 1.0, 2.5),
+(3, 8, 3, 'Camp 2 (Mossy Forest Exit)', 'Campsite marking the boundary between mossy forest and dwarf bamboo grassland.', 120.90730, 16.58404, 2685, 'Easy', 3.0, 5.8),
+(3, 8, 4, 'Saddle Campsite', 'High-altitude campsite right below the summit peak.', 120.8959, 16.59735, 2840, 'Easy', 3.5, 6.8),
+(3, 8, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m) famous for the sea of clouds.', 120.9312, 16.6118, 2928, 'Easy', 4.0, 8.3),
 
 -- Trail 2: Tawangan Trail (route_waypoint_id = 9)
-(3, 9, 1, 'Tawangan Barangay Hall', 'Jump-off point in Barangay Tawangan, Kabayan.', 120.8750, 16.6320, 1480, 'Hard', 0.0, 0.0),
-(3, 9, 2, 'Tawangan Mossy Forest Camp', 'Deep mossy forest campsite with high humidity and lush vegetation.', 120.8870, 16.6180, 2100, 'Hard', 5.0, 7.5),
-(3, 9, 3, 'Mount Pulag Summit', 'Summit junction approaching from the northern mossy forest trail.', 120.8992, 16.5975, 2928, 'Hard', 10.0, 13.0),
+(3, 9, 1, 'Tawangan Barangay Hall', 'Jump-off point and registration area in Barangay Tawangan, Kabayan.', 120.9272, 16.6917, 1480, 'Hard', 0.0, 0.0),
+(3, 9, 2, 'Tawangan Mossy Forest Camp', 'Deep mossy forest campsite with high humidity, moss-covered trails, and leeches.', 120.9255, 16.6508, 2150, 'Hard', 5.0, 7.5),
+(3, 9, 3, 'Ta-aw Junction / Grassland', 'The transition area where the dense mossy forest opens up to the cold dwarf bamboo grassland.', 120.9290, 16.6210, 2710, 'Hard', 8.5, 11.5),
+(3, 9, 4, 'Mount Pulag Summit', 'Summit junction approaching from the northern mossy forest trail.', 120.9312, 16.6118, 2928, 'Hard', 10.0, 13.5),
 
 -- Trail 3: Akiki Trail (route_waypoint_id = 10)
-(3, 10, 1, 'Akiki Jump-Off Point', 'Starting point at Barangay Doacan, Kabayan.', 120.8421, 16.5812, 1250, 'Hard', 0.0, 0.0),
-(3, 10, 2, 'Eddet River Camp', 'Riverside campsite after a steep downhill descent from jump-off.', 120.8605, 16.5790, 1650, 'Hard', 3.0, 4.5),
-(3, 10, 3, 'Marlboro Country Camp', 'Mid-trail campsite located in a lush pine forest area.', 120.8780, 16.5855, 2130, 'Hard', 7.0, 9.2),
-(3, 10, 4, 'Akiki Mossy Forest Exit', 'Dense forest section leading to the open grasslands.', 120.8920, 16.5925, 2600, 'Hard', 10.0, 12.5),
-(3, 10, 5, 'Mount Pulag Summit', 'Reaches the main peak from the western ridgeline.', 120.8992, 16.5975, 2928, 'Hard', 12.0, 14.5),
+(3, 10, 1, 'Akiki Jump-off (Ranger Station)', 'The official starting point of the Akiki Trail in Kabayan, Benguet.', 120.8992, 16.5975, 2260, 'Hard', 0.0, 0.0),
+(3, 10, 2, 'Eddet River (Camp 1)', 'A popular rest stop and campsite featuring a hanging bridge and freshwater source.', 120.9025, 16.5910, 1650, 'Hard', 3.0, 2.5),
+(3, 10, 3, 'Marlboro Country (Camp 2)', 'An open grassland campsite known for its scenic views and pine tree surroundings.', 120.9110, 16.5945, 2200, 'Hard', 7.0, 6.8),
+(3, 10, 4, 'Mossy Forest Entry', 'The start of the dense, moss-covered cloud forest with steep, challenging inclines.', 120.9185, 16.6020, 2450, 'Hard', 10.0, 10.5),
+(3, 10, 5, 'Saddle Campsite (Camp 3)', 'The final campsite located just below the summit, known for extreme cold temperatures.', 120.9302, 16.6111, 2840, 'Hard', 13.0, 14.2),
+(3, 10, 6, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m) offering the famous 360-degree sea of clouds view.', 120.9312, 16.6118, 2928, 'Hard', 14.0, 15.4),
+(3, 10, 7, 'Ambangeg Trailhead Exit', 'The final exit point at the Ambangeg Ranger Station after completing the full traverse.', 120.8875, 16.582778, 2250, 'Moderate', 17.5, 20.4),
 
 -- Trail 4: Ambaguio Trail (route_waypoint_id = 11)
-(3, 11, 1, 'Ambaguio Jump-off', 'Starting point in Ambaguio, Nueva Vizcaya.', 121.0150, 16.5210, 1100, 'Hard', 0.0, 0.0),
-(3, 11, 2, 'Upper Napo Shelter', 'First day rest stop along the forest ridgeline.', 120.9750, 16.5450, 1850, 'Hard', 8.0, 12.0),
-(3, 11, 3, 'Mount Pulag Summit', 'Approaches the peak from the eastern slope.', 120.8992, 16.5975, 2928, 'Hard', 16.0, 24.0);
+(3, 11, 1, 'Ambaguio Jump-off (Poblacion)', 'Starting point and registration center in Poblacion, Ambaguio, Nueva Vizcaya.', 121.0235, 16.5381, 1100, 'Hard', 0.0, 0.0),
+(3, 11, 2, 'Upper Napo Rest Stop', 'First major resting point along the challenging mossy forest ridgeline.', 120.9850, 16.5495, 1850, 'Hard', 4.5, 11.5),
+(3, 11, 3, 'Lusod Village', 'A remote, high-altitude mountain village serving as the primary overnight campsite for day one.', 120.9620, 16.5640, 1920, 'Hard', 7.5, 16.0),
+(3, 11, 4, 'Bantay Lakay Pine Ridge', 'A scenic, open pine ridge trail presenting rolling hills and steep climbs.', 120.9415, 16.5855, 2350, 'Hard', 11.0, 21.5),
+(3, 11, 5, 'Mount Pulag Summit', 'The highest peak in Luzon (2,928m), approaching directly from the eastern Nueva Vizcaya slope.', 120.9312, 16.6118, 2928, 'Hard', 14.0, 24.5);
+
 -- USERS
 INSERT INTO users (first_name, last_name, username, email, password, hiker_experience, role) VALUES
 ('Alex', 'Rivera', 'alex.rivera', 'alex.rivera@example.com', '$2b$12$U142o1R5v9EYyPQ5eBMtLuflnt/G832bpDLJGN7sjdbMf/At8ZSCu', 'beginner', 'user'),
