@@ -165,6 +165,8 @@ def analyze_difficulty(mountain: dict) -> str:
     try:
         system_prompt = (
             "You are a hiking guide analyzing trail difficulty for the TaraPeak app. "
+            "Your response MUST start with an explicit Difficulty Level assessment formatted exactly as: "
+            "**Difficulty:** [Easy / Moderate / Challenging / Hard / Critical]' on the very first line. "
             "Give a concise, practical difficulty analysis in 3-4 short paragraphs or bullet points. "
             "Cover: who this trail suits (beginner/intermediate/experienced), what makes it hard or easy, "
             "and one concrete tip to manage the difficulty. Do not just repeat the raw stats back verbatim."
