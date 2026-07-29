@@ -1190,9 +1190,6 @@ def mark_all_notifications_read(current_user: dict = Depends(get_current_user)):
 def ai_difficulty(mountain_id: int, current_user: dict = Depends(get_current_user)):
     mountain = fetch_mountain(mountain_id)
 
-    if cached is not None:
-        return {"mountain_id": mountain_id, "analysis": cached, "cached": True}
-
     try:
         
         analysis = ai.analyze_difficulty(mountain, current_user)
