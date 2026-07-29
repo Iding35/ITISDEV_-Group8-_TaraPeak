@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Route, Routes, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { fetchPlanDetail } from './api';
 import Login from './pages/Login';
 import Mountains from './pages/Mountains';
 import PlanDetail from './pages/PlanDetail';
@@ -33,13 +34,19 @@ function PlanRouteWrapper() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/plans/${id}`)
-      .then((res) => res.json())
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    fetchPlanDetail(Number(id))
       .then((data) => {
         setPlan(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error("Fetch error in PlanRouteWrapper:", err);
+        setLoading(false);
+      });
   }, [id]);
 
   if (loading) {
@@ -47,13 +54,13 @@ function PlanRouteWrapper() {
   }
 
   if (!plan) {
-    return <Navigate to="/dashboard" replace />;
+    return <div className="p-8 text-red-500">Error: Plan could not be found or fetched.</div>;
   }
 
-  if (plan.is_completed) {
+  if (plan.is_completed === true || plan.is_completed === 1) {
     return <Navigate to={`/plans/completed/${id}`} replace />;
   }
-
+  
   return <PlanDetail />;
 }
 

@@ -54,8 +54,7 @@ export interface Plan {
   hazards: string | null;
   status?: string;
   checkpoint_id?: number;      
-  checkpoint_name?: string; 
-  is_owner: boolean;
+  checkpoint_name?: string;
 }
 
 export interface GearItem {

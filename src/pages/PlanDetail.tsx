@@ -296,10 +296,10 @@ export default function PlanDetail() {
     return fetchPlanDetail(Number(id))
       .then(async (planData) => {
 
-        if (planData.is_completed) {
-          navigate('/dashboard', { replace: true });
-          return;
-        }
+        if (planData.is_completed === true) {
+  navigate(`/plans/completed/${id}`, { replace: true });
+  return;
+}
         
         setPlan(planData);
 
@@ -321,9 +321,7 @@ export default function PlanDetail() {
               const selectedCpId = planData.checkpoint_id ? Number(planData.checkpoint_id) : null;
               let targetCp = selectedCpId ? trailCps.find(c => Number(c.checkpoint_id) === selectedCpId) : null;
               
-              if (!targetCp && planData.checkpoint_name) {
-                targetCp = trailCps.find(c => c.name.toLowerCase() === planData.checkpoint_name.toLowerCase());
-              }
+              if (!targetCp && planData.checkpoint_name) { const checkpointName = planData.checkpoint_name; targetCp = trailCps.find(c => c.name.toLowerCase() === checkpointName.toLowerCase()); }
 
               let filteredCps = trailCps;
               if (targetCp && targetCp.sequence_order !== undefined) {
