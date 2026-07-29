@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Route, Routes, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { fetchPlanDetail } from './api';
+import ChatWidget from './components/ChatWidget';
 import Login from './pages/Login';
 import Mountains from './pages/Mountains';
 import PlanDetail from './pages/PlanDetail';
@@ -91,6 +92,17 @@ export default function App() {
               </AdminRoute>
             }
           />
+          {/* /admin/dashboard is the canonical post-login landing path for
+              admins; /admin above is kept working since AdminNavbar still
+              links there. Both render the same component. */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
           <Route
             path="/admin/reports"
             element={
@@ -109,6 +121,7 @@ export default function App() {
           />
         </Routes>
       </BrowserRouter>
+      <ChatWidget />
     </AuthProvider>
   );
 }

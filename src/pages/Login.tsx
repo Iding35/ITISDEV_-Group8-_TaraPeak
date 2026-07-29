@@ -20,9 +20,9 @@ export default function Login() {
 
       // Route based on role
       if (user?.role === 'admin') {
-        navigate('/admin'); // Redirects to /admin for AdminDashboard
+        navigate('/admin/dashboard');
       } else {
-        navigate('/');       // Regular users go to home
+        navigate('/dashboard');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

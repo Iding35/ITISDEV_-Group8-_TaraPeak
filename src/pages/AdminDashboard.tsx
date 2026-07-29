@@ -10,13 +10,16 @@ import {
   fetchReportsByMountain,
   fetchQuarterlyRegistrations,
   fetchPopularityDrivers,
-  fetchMostTakenTrails, 
+  fetchMostTakenTrails,
+  fetchDiagnosticCorrelations,
   type Mountain,
   type TrailReportSummary,
   type MountainReportSummary,
   type QuarterlyRegistration,
   type PopularityDriver,
-  type MostTakenTrail
+  type MostTakenTrail,
+  type DiagnosticCorrelations,
+  type DiagnosticGroupRow,
 } from '../api';
 
 const CHART_COLORS = {
@@ -41,11 +44,12 @@ export default function AdminDashboard() {
   const [quarterlyData, setQuarterlyData] = useState<QuarterlyRegistration[]>([]);
   const [popularityData, setPopularityData] = useState<PopularityDriver[]>([]);
   const [mountains, setMountains] = useState<Mountain[]>([]);
-  const [selectedMountain, setSelectedMountain] = useState<number | ''>('');
 
   const [loading, setLoading] = useState(true);
   const [selectedTrailMountainFilter, setSelectedTrailMountainFilter] = useState<number | ''>('');
   const [mostTakenTrails, setMostTakenTrails] = useState<MostTakenTrail[]>([]);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticCorrelations | null>(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(true);
 
   // Filter states for the Diagnostic Completion Section matching the filter flow
   const [diagnosticMountainFilter, setDiagnosticMountainFilter] = useState<string>('');
@@ -68,7 +72,6 @@ export default function AdminDashboard() {
         setQuarterlyData(quarters);
         setPopularityData(popularity);
         setMostTakenTrails(topTrails);
-        if (mts.length > 0) setSelectedMountain(mts[0].mountain_id);
       } catch (err) {
         console.error(err);
       } finally {
@@ -76,6 +79,15 @@ export default function AdminDashboard() {
       }
     }
     loadData();
+  }, []);
+
+  // Fetched separately from the Promise.all batch above: the AI narrative
+  // takes longer than the plain SQL-backed charts, and shouldn't delay them.
+  useEffect(() => {
+    fetchDiagnosticCorrelations()
+      .then(setDiagnostics)
+      .catch((err) => console.error(err))
+      .finally(() => setDiagnosticsLoading(false));
   }, []);
 
   const handleTrailMountainFilterChange = (mountainId: number | '') => {
@@ -379,6 +391,7 @@ export default function AdminDashboard() {
                       <th className="p-3">Mountain Name</th>
                       <th className="p-3 text-center">Planned Trips</th>
                       <th className="p-3 text-center">Difficulty</th>
+                      <th className="p-3 text-center">Accessibility</th>
                       <th className="p-3 text-center">Avg Rating</th>
                       <th className="p-3 text-right">Distance</th>
                     </tr>
@@ -389,6 +402,7 @@ export default function AdminDashboard() {
                         <td className="p-3 font-bold text-emerald-950">{item.mountain_name}</td>
                         <td className="p-3 text-center font-bold text-amber-900">{item.total_plans}</td>
                         <td className="p-3 text-center font-medium text-primary">{item.difficulty}</td>
+                        <td className="p-3 text-center font-medium text-stone-600">{item.accessibility}</td>
                         <td className="p-3 text-center font-semibold text-amber-800">★ {item.avg_rating || 'N/A'}</td>
                         <td className="p-3 text-right font-medium text-primary">{item.distance} km</td>
                       </tr>
@@ -398,6 +412,82 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* Diagnostic AI: trail-selection frequency vs. categorical attributes */}
+            <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm print:shadow-none print:border-stone-300">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-bold text-lg text-primary">Diagnostic: Selection Patterns</h3>
+                {diagnostics && (
+                  <span
+                    className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      diagnostics.source === 'ai'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}
+                  >
+                    {diagnostics.source === 'ai' ? 'AI-generated' : 'Rule-based fallback'}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-stone-600 mb-4">
+                How often trails are selected for a hike plan, and their average rating, broken
+                down by difficulty, terrain, and accessibility.
+              </p>
+
+              {diagnosticsLoading && (
+                <p className="text-xs text-stone-400 py-4">Analyzing selection patterns…</p>
+              )}
+
+              {!diagnosticsLoading && !diagnostics && (
+                <p className="text-xs text-stone-400 py-4">Diagnostic analysis unavailable right now.</p>
+              )}
+
+              {diagnostics && (
+                <>
+                  <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-line bg-stone-50 border border-stone-100 rounded-lg p-4 mb-5">
+                    {diagnostics.narrative}
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {(
+                      [
+                        { title: 'By Difficulty', key: 'by_difficulty', label: (row: DiagnosticGroupRow) => row.difficulty },
+                        { title: 'By Terrain', key: 'by_terrain', label: (row: DiagnosticGroupRow) => row.terrain },
+                        { title: 'By Accessibility', key: 'by_accessibility', label: (row: DiagnosticGroupRow) => row.accessibility },
+                      ] as const
+                    ).map((col) => (
+                      <div key={col.key}>
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-2">
+                          {col.title}
+                        </h4>
+                        <div className="flex flex-col gap-1.5">
+                          {diagnostics[col.key].map((row, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between gap-2 bg-stone-50 border border-stone-100 rounded-lg px-3 py-2 text-xs"
+                            >
+                              <span className="font-semibold text-emerald-950 truncate">
+                                {col.label(row) || 'Unspecified'}
+                              </span>
+                              <span className="shrink-0 text-stone-500">
+                                {row.times_selected} selected
+                                {row.avg_rating !== null && (
+                                  <span className="ml-1.5 text-amber-800 font-semibold">
+                                    ★ {row.avg_rating}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                          {diagnostics[col.key].length === 0 && (
+                            <p className="text-xs text-stone-400">No data.</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
 
 <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm flex flex-col justify-between">
   <div>

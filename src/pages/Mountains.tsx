@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchMountains, type Mountain } from '../api';
+import { fetchMountainTrailStats, fetchMountains, type Mountain, type MountainTrailStats } from '../api';
 import Navbar from '../components/Navbar';
+
+/** "3h 45m" from a minute count; falls back to a dash when there's no data yet. */
+function formatDuration(minutes: number | null): string {
+  if (minutes === null || minutes === undefined) return '—';
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+}
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -17,6 +25,22 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 }
 
 function TrailCard({ mountain, index }: { mountain: Mountain; index: number }) {
+  const [stats, setStats] = useState<MountainTrailStats | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMountainTrailStats(mountain.mountain_id)
+      .then((result) => {
+        if (!cancelled) setStats(result);
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mountain.mountain_id]);
+
   return (
     <Link
       to={`/trail/${mountain.mountain_id}`}
@@ -28,6 +52,15 @@ function TrailCard({ mountain, index }: { mountain: Mountain; index: number }) {
           className="trail-image w-full h-full bg-cover bg-center transition-transform duration-500"
           style={{ backgroundImage: `url('/${mountain.image_url}')` }}
         />
+        {/* Crowd-estimation badge: hikers scheduled today, from live plan data. */}
+        {stats && stats.crowd_count > 0 && (
+          <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/60 backdrop-blur-sm px-2.5 py-1 text-xs font-semibold text-white">
+            <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
+              groups
+            </span>
+            {stats.crowd_count} hiking today
+          </span>
+        )}
       </div>
       <div className="p-md flex flex-col gap-sm">
         <div className="flex justify-between items-start">
@@ -54,6 +87,17 @@ function TrailCard({ mountain, index }: { mountain: Mountain; index: number }) {
               TERRAIN
             </span>
             <span className="font-label-md text-label-md text-on-surface-variant">{mountain.terrain}</span>
+          </div>
+          {/* Historical completion-time indicator, from logged trip histories. */}
+          <div className="bg-surface-container-low p-sm rounded-lg col-span-2">
+            <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">
+              AVG. HIKE TIME
+            </span>
+            <span className="font-label-md text-label-md text-on-surface-variant">
+              {stats && stats.completions_logged > 0
+                ? `${formatDuration(stats.avg_completion_minutes)} (from ${stats.completions_logged} logged hike${stats.completions_logged === 1 ? '' : 's'})`
+                : 'Not enough completed hikes logged yet'}
+            </span>
           </div>
         </div>
       </div>

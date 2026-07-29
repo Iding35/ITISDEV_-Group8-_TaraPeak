@@ -2,7 +2,7 @@ import { Link, useParams, Navigate, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
-import { fetchPlans, fetchPlanDetail, fetchWaypoints, fetchTrailCheckpoints, type Plan, type DetailedPlan, type TrailCheckpoint } from "../api";
+import { fetchPlans, fetchPlanDetail, fetchWaypoints, fetchTrailCheckpoints, type DetailedPlan, type TrailCheckpoint } from "../api";
 
 function formatPlanDate(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, {
@@ -56,8 +56,9 @@ export default function PlanDetailCompleted() {
               const selectedCpId = planData.checkpoint_id ? Number(planData.checkpoint_id) : null;
               let targetCp = selectedCpId ? trailCps.find(c => Number(c.checkpoint_id) === selectedCpId) : null;
               
-              if (!targetCp && planData.checkpoint_name) {
-                targetCp = trailCps.find(c => c.name.toLowerCase() === planData.checkpoint_name.toLowerCase());
+              const checkpointName = planData.checkpoint_name;
+              if (!targetCp && checkpointName) {
+                targetCp = trailCps.find(c => c.name.toLowerCase() === checkpointName.toLowerCase());
               }
 
               let filteredCps = trailCps;

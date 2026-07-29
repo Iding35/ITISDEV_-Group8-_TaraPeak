@@ -1,5 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine,
+} from 'recharts';
 import {
   checkWeather,
   createPlan,
@@ -8,11 +11,16 @@ import {
   fetchSafetyAnalysis,
   fetchWaypoints,
   fetchTrailCheckpoints,
+  fetchPrescriptiveSafety,
+  fetchWeatherBaseline,
   generateGearRecommendation,
   type GearRecommendation,
   type Mountain,
+  type PrescriptiveSafety,
+  type SafetyChecklistItem,
   type Waypoint,
   type TrailCheckpoint,
+  type WeatherBaseline,
   type WeatherCheckResponse,
 } from '../api';
 import Navbar from '../components/Navbar';
@@ -186,9 +194,101 @@ function GearList({
   );
 }
 
+const RISK_STYLES: Record<string, { ring: string; bg: string; text: string }> = {
+  'Low Risk': { ring: 'stroke-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  'Moderate Risk': { ring: 'stroke-amber-500', bg: 'bg-amber-50', text: 'text-amber-700' },
+  'Elevated Risk': { ring: 'stroke-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' },
+  'High Risk': { ring: 'stroke-red-500', bg: 'bg-red-50', text: 'text-red-700' },
+};
+
+/** Prescriptive panel: security index gauge, risk level, and an actionable
+ * checklist grid split into critical vs. recommended items. */
+function SafetyChecklistPanel({ safety }: { safety: PrescriptiveSafety }) {
+  const style = RISK_STYLES[safety.risk_label] ?? RISK_STYLES['Moderate Risk'];
+  const critical = safety.checklist.filter((i) => i.is_critical);
+  const optional = safety.checklist.filter((i) => !i.is_critical);
+
+  // Circle circumference for a 36-radius ring gauge, filled proportionally
+  // to the 0-100 security index.
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const filled = (safety.security_index / 100) * circumference;
+
+  function renderGroup(title: string, items: SafetyChecklistItem[]) {
+    if (items.length === 0) return null;
+    return (
+      <div>
+        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">
+          {title} ({items.length})
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {items.map((item, index) => (
+            <div
+              key={`${item.item}-${index}`}
+              className="flex gap-2.5 rounded-xl border border-gray-200/80 bg-white p-3"
+            >
+              <span
+                aria-hidden="true"
+                className={`material-symbols-outlined text-[18px] shrink-0 ${
+                  item.is_critical ? 'text-red-500' : 'text-primary'
+                }`}
+              >
+                {item.is_critical ? 'priority_high' : 'check_circle'}
+              </span>
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-900 text-sm">{item.item}</p>
+                {item.reason && <p className="text-xs text-gray-500 mt-0.5">{item.reason}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className={`flex items-center gap-4 rounded-xl border p-4 ${style.bg} border-current/10`}>
+        <svg width="88" height="88" viewBox="0 0 88 88" className="shrink-0 -rotate-90">
+          <circle cx="44" cy="44" r={radius} fill="none" stroke="#E5E7EB" strokeWidth="8" />
+          <circle
+            cx="44"
+            cy="44"
+            r={radius}
+            fill="none"
+            strokeWidth="8"
+            strokeLinecap="round"
+            className={style.ring}
+            strokeDasharray={`${filled} ${circumference}`}
+          />
+        </svg>
+        <div className="-ml-16 w-16 text-center">
+          <span className={`block text-2xl font-bold ${style.text}`}>{safety.security_index}</span>
+          <span className="block text-[10px] text-gray-500">/ 100</span>
+        </div>
+        <div className="min-w-0">
+          <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${style.bg} ${style.text} border border-current/20`}>
+            {safety.risk_label}
+          </span>
+          <p className="text-sm text-gray-700 mt-1.5 leading-relaxed">{safety.summary}</p>
+        </div>
+      </div>
+
+      {safety.source === 'fallback' && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          The AI service was unreachable, so this checklist was built from the same signals using
+          TaraPeak's built-in rules.
+        </p>
+      )}
+
+      {renderGroup('Critical', critical)}
+      {renderGroup('Recommended', optional)}
+    </div>
+  );
+}
+
 export default function Planner() {
   const { user, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
 
   const [mountains, setMountains] = useState<Mountain[]>([]);
   const [trails, setTrails] = useState<Waypoint[]>([]);
@@ -206,9 +306,16 @@ export default function Planner() {
   const [weather, setWeather] = useState<WeatherCheckResponse | null>(null);
   const [checkingWeather, setCheckingWeather] = useState(false);
 
+  const [baseline, setBaseline] = useState<WeatherBaseline | null>(null);
+  const [baselineLoading, setBaselineLoading] = useState(false);
+
   const [gear, setGear] = useState<GearRecommendation | null>(null);
   const [gearStatus, setGearStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [gearError, setGearError] = useState<string | null>(null);
+
+  const [safety, setSafety] = useState<PrescriptiveSafety | null>(null);
+  const [safetyStatus, setSafetyStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [safetyError, setSafetyError] = useState<string | null>(null);
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -294,10 +401,12 @@ export default function Planner() {
     };
   }, [selectedTrail]);
 
-  // Any change to the trip invalidates the generated gear and save state.
+  // Any change to the trip invalidates the generated gear/safety and save state.
   useEffect(() => {
     setGear(null);
     setGearStatus('idle');
+    setSafety(null);
+    setSafetyStatus('idle');
     setSaveStatus('idle');
   }, [selectedMountain, selectedTrail, selectedCheckpoint, date]);
 
@@ -326,6 +435,33 @@ export default function Planner() {
     };
   }, [selectedMountain, selectedTrail, date, isBeyondForecast]);
 
+  // Historical baseline trend. Unlike the near-term forecast above, this has
+  // no 14-day ceiling — it's a same-month average from prior years, so it's
+  // exactly as valid for a date 6 months out as for tomorrow.
+  useEffect(() => {
+    if (!selectedMountain || !selectedTrail || !date) {
+      setBaseline(null);
+      return;
+    }
+
+    let cancelled = false;
+    setBaselineLoading(true);
+    fetchWeatherBaseline(Number(selectedMountain), selectedTrail.waypoint_id, date)
+      .then((result) => {
+        if (!cancelled) setBaseline(result);
+      })
+      .catch(() => {
+        if (!cancelled) setBaseline(null);
+      })
+      .finally(() => {
+        if (!cancelled) setBaselineLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMountain, selectedTrail, date]);
+
   async function handleGenerateGear() {
     if (!canSave || !selectedTrail) return;
     setGearStatus('loading');
@@ -344,6 +480,20 @@ export default function Planner() {
     }
   }
 
+  async function handleGenerateSafety() {
+    if (!canSave || !selectedTrail) return;
+    setSafetyStatus('loading');
+    setSafetyError(null);
+    try {
+      const result = await fetchPrescriptiveSafety(Number(selectedMountain), selectedTrail.waypoint_id, date);
+      setSafety(result);
+      setSafetyStatus('idle');
+    } catch (err) {
+      setSafetyStatus('error');
+      setSafetyError(err instanceof Error ? err.message : 'Could not generate the safety checklist');
+    }
+  }
+
   async function handleSave() {
     if (!canSave || !selectedTrail || !selectedCheckpoint) return;
     setSaveStatus('saving');
@@ -354,15 +504,15 @@ export default function Planner() {
         is_packed: false,
       })) ?? [];
 
-      const plan = await createPlan(
+      await createPlan(
         Number(selectedMountain),
         selectedTrail.waypoint_id,
         date,
-        selectedCheckpoint.checkpoint_id, 
+        selectedCheckpoint.checkpoint_id,
         {
           ai_gear_summary: gear?.summary ?? null,
           gear: gearWithPackedState,
-        } 
+        }
       );
       setSaveStatus('saved');
             
@@ -655,6 +805,104 @@ export default function Planner() {
               </div>
             </div>
 
+            {/* Historical baseline: same-month average across recent years,
+                valid for any future date (no 14-day forecast ceiling). */}
+            <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
+                  <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
+                    monitoring
+                  </span>
+                  Historical Weather Trend
+                </h2>
+                {baseline && baseline.trend.length > 0 && (
+                  <span className="text-xs font-semibold bg-gray-50 px-2 py-1 rounded-md border border-gray-200 text-gray-600">
+                    {baseline.years_requested[0]}–{baseline.years_requested[baseline.years_requested.length - 1]}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Average conditions for this month in recent years — a longer-range guide than the
+                14-day forecast above.
+              </p>
+
+              {!selectedMountain || !selectedTrail || !date ? (
+                <p className="text-xs text-gray-500 py-6 text-center">
+                  Complete the form to see the historical trend for this trail and month.
+                </p>
+              ) : baselineLoading ? (
+                <div className="flex items-center justify-center gap-2 text-gray-500 py-8 text-xs">
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  Loading historical climate data…
+                </div>
+              ) : !baseline || baseline.trend.length === 0 ? (
+                <p className="text-xs text-gray-500 py-6 text-center">
+                  No historical data available for this trail yet.
+                </p>
+              ) : (
+                <>
+                  <div className="h-56 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={baseline.trend} margin={{ top: 10, right: 16, left: -16, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                        <XAxis dataKey="year" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: '#6B7280' }}
+                          axisLine={false}
+                          tickLine={false}
+                          unit="°C"
+                          width={44}
+                        />
+                        <Tooltip
+                          formatter={(value) => [`${value}°C`, 'Avg. temperature']}
+                          labelFormatter={(label) => `${label}`}
+                        />
+                        {baseline.baseline?.avg_temperature != null && (
+                          <ReferenceLine
+                            y={baseline.baseline.avg_temperature}
+                            stroke="#9CA3AF"
+                            strokeDasharray="4 4"
+                            label={{ value: 'Baseline', position: 'insideTopRight', fontSize: 10, fill: '#9CA3AF' }}
+                          />
+                        )}
+                        <Line
+                          type="monotone"
+                          dataKey="avg_temperature"
+                          stroke="#154212"
+                          strokeWidth={2}
+                          dot={{ r: 4, fill: '#154212' }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {baseline.baseline && (
+                    <div className="grid grid-cols-3 gap-2.5 mt-3">
+                      <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200/60 text-center">
+                        <span className="block text-[10px] text-gray-400 font-medium">Avg Temp</span>
+                        <span className="text-sm font-bold text-gray-800">
+                          {baseline.baseline.avg_temperature ?? '—'}°C
+                        </span>
+                      </div>
+                      <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200/60 text-center">
+                        <span className="block text-[10px] text-gray-400 font-medium">Avg Humidity</span>
+                        <span className="text-sm font-bold text-gray-800">
+                          {baseline.baseline.avg_humidity ?? '—'}%
+                        </span>
+                      </div>
+                      <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200/60 text-center">
+                        <span className="block text-[10px] text-gray-400 font-medium">Avg Rainfall</span>
+                        <span className="text-sm font-bold text-gray-800">
+                          {baseline.baseline.avg_precipitation ?? '—'} mm
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
             <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -698,6 +946,53 @@ export default function Planner() {
                   recommendation={gear}
                 />
               )}
+            </div>
+
+            {/* Prescriptive: security index + actionable checklist */}
+            <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="flex items-center gap-2 text-lg font-semibold text-primary mb-1">
+                    <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
+                      verified_user
+                    </span>
+                    AI Safety Checklist
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    A security index and packing checklist from the forecast, recent trail reports,
+                    and this trail's profile.
+                  </p>
+                </div>
+                {!safety && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateSafety}
+                    disabled={!canSave || safetyStatus === 'loading'}
+                    className="rounded-xl bg-primary px-4 py-2 font-semibold text-white transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-50 text-sm shrink-0"
+                  >
+                    {safetyStatus === 'loading' ? 'Assessing…' : 'Generate Safety Checklist'}
+                  </button>
+                )}
+              </div>
+
+              {safetyStatus === 'loading' && (
+                <div className="flex items-center gap-3 text-gray-500 text-sm py-4">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  Scoring conditions and building your checklist…
+                </div>
+              )}
+
+              {safetyStatus === 'error' && safetyError && (
+                <p className="text-sm text-red-600 py-2">{safetyError}</p>
+              )}
+
+              {!safety && safetyStatus !== 'loading' && (
+                <p className="text-sm text-gray-500 py-4 text-center">
+                  Generate the checklist to see a safety score and what to bring for this exact trip.
+                </p>
+              )}
+
+              {safety && safetyStatus !== 'loading' && <SafetyChecklistPanel safety={safety} />}
             </div>
 
             {/* Additional AI Analysis Cards (Always Visible, Disabled when criteria are not met) */}
