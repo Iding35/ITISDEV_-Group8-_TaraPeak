@@ -159,17 +159,24 @@ def _generate_fallback_pacing(mountain: dict, waypoints: list) -> str:
         f"Spend no more than 10-15 minutes at each waypoint to stay on schedule. "
         f"Use rest stops specifically to adjust layers, re-tie shoes, and check your map alignment."
     )
-
-
-def analyze_difficulty(mountain: dict) -> str:
+    
+def analyze_difficulty(mountain: dict, current_user: dict) -> str:
     try:
+        hiker_experience = current_user.get('hiker_experience', 'beginner') if current_user else 'beginner'
+        
         system_prompt = (
             "You are a hiking guide analyzing trail difficulty for the TaraPeak app. "
             "Your response MUST start with an explicit Difficulty Level assessment formatted exactly as: "
-            "**Difficulty:** [Easy / Moderate / Challenging / Hard / Critical]' on the very first line. "
-            "Give a concise, practical difficulty analysis in 3-4 short paragraphs or bullet points. "
-            "Cover: who this trail suits (beginner/intermediate/experienced), what makes it hard or easy, "
-            "and one concrete tip to manage the difficulty. Do not just repeat the raw stats back verbatim."
+            "**Difficulty:** [Easy / Moderate / Challenging / Hard / Critical] on the very first line. "
+            "**Analysis:** Give a concise, practical difficulty analysis in 3-4 short paragraphs or bullet points. "
+            "Specifically evaluate how this trail's terrain, distance, and hazards match up against the user's stated experience level, "
+            "what makes it uniquely hard or manageable for someone at that specific level, "
+            "and **Tip:** Provide one concrete, tailored tip to help them successfully manage the route. "
+            "Do not just repeat the raw stats back verbatim."
+            "STRICT RULES: Do not use em dashes (—) anywhere in your response. "
+            "Keep your analysis balanced: avoid generic platitudes like 'stay safe and drink water,' "
+            "but avoid overly specific micro-details or trivial facts. Focus on practical, trail-specific factors "
+            "that directly affect a hiker with the user's experience level."
         )
         user_prompt = (
             f"Mountain: {mountain.get('mountain_name', '')} ({mountain.get('location', '')})\n"
@@ -178,12 +185,12 @@ def analyze_difficulty(mountain: dict) -> str:
             f"Estimated time: {mountain.get('estimated_time', '')} hours\n"
             f"Terrain: {mountain.get('terrain', '')}\n"
             f"Known hazards: {mountain.get('hazards', '')}\n"
+            f"User Hiking Experience: {hiker_experience}\n"
         )
         return _chat(system_prompt, user_prompt)
     except Exception as e:
         print(f"[AI Fallback] DeepSeek API error: {e}. Generating local fallback analysis.")
         return _generate_fallback_difficulty(mountain)
-
 
 def analyze_safety(mountain: dict, weather: Optional[dict]) -> str:
     try:

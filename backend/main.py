@@ -1190,18 +1190,16 @@ def mark_all_notifications_read(current_user: dict = Depends(get_current_user)):
 def ai_difficulty(mountain_id: int, current_user: dict = Depends(get_current_user)):
     mountain = fetch_mountain(mountain_id)
 
-    cached = get_cached_analysis(mountain_id, "difficulty")
     if cached is not None:
         return {"mountain_id": mountain_id, "analysis": cached, "cached": True}
 
     try:
-        analysis = ai.analyze_difficulty(mountain)
+        
+        analysis = ai.analyze_difficulty(mountain, current_user)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
 
-    save_cached_analysis(mountain_id, "difficulty", analysis)
     return {"mountain_id": mountain_id, "analysis": analysis, "cached": False}
-
 
 @app.post("/ai/safety/{mountain_id}")
 def ai_safety(
@@ -1211,12 +1209,6 @@ def ai_safety(
     current_user: dict = Depends(get_current_user),
 ):
     mountain = fetch_mountain(mountain_id)
-    cache_key = hiking_date.isoformat() if hiking_date else ""
-
-    cached = get_cached_analysis(mountain_id, "safety", cache_key)
-    if cached is not None:
-        return {"mountain_id": mountain_id, "analysis": cached, "cached": True}
-
     weather_data = get_weather_forecast(waypoint_id, hiking_date) if hiking_date else None
 
     try:
@@ -1224,7 +1216,6 @@ def ai_safety(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
 
-    save_cached_analysis(mountain_id, "safety", analysis, cache_key)
     return {"mountain_id": mountain_id, "analysis": analysis, "cached": False}
 
 
