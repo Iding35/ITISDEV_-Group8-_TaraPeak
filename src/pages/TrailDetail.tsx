@@ -148,7 +148,15 @@ function TrailAndCheckpointSection({
       .then((cps) => {
         setCheckpoints(cps);
         onCheckpointsLoaded(cps);
-        onSelectCheckpoint(null); // Reset checkpoint selection on trail change
+        
+        // Default to the second checkpoint (index 1) if available, otherwise fallback to index 0 or null
+        if (cps.length > 1) {
+          onSelectCheckpoint(cps[1]);
+        } else if (cps.length > 0) {
+          onSelectCheckpoint(cps[0]);
+        } else {
+          onSelectCheckpoint(null);
+        }
       })
       .finally(() => setLoadingCheckpoints(false));
   }, [selectedTrail]);
@@ -208,18 +216,27 @@ function TrailAndCheckpointSection({
 
         {!loadingCheckpoints && checkpoints.length > 0 && (
           <ol className="flex flex-col gap-3 mt-3 overflow-y-auto pr-1 flex-1">
-            {checkpoints.map((cp) => {
+            {checkpoints.map((cp, index) => {
               const isSelected = selectedCheckpoint?.checkpoint_id === cp.checkpoint_id;
+              // First checkpoint (index 0) is visible but not selectable
+              const isFirstCheckpoint = index === 0;
 
               return (
                 <li
                   key={cp.checkpoint_id}
-                  onClick={() => onSelectCheckpoint(cp)}
-                  className={`flex gap-3.5 items-start p-4 rounded-xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm'
-                      : 'border-gray-200/80 bg-white hover:border-gray-300'
+                  onClick={() => {
+                    if (!isFirstCheckpoint) {
+                      onSelectCheckpoint(cp);
+                    }
+                  }}
+                  className={`flex gap-3.5 items-start p-4 rounded-xl border transition-all ${
+                    isFirstCheckpoint
+                      ? 'border-gray-200/50 bg-gray-50 opacity-60 cursor-not-allowed'
+                      : isSelected
+                        ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-sm cursor-pointer'
+                        : 'border-gray-200/80 bg-white hover:border-gray-300 cursor-pointer'
                   }`}
+                  title={isFirstCheckpoint ? 'Starting point (not selectable)' : undefined}
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                     {cp.sequence_order}
@@ -227,7 +244,9 @@ function TrailAndCheckpointSection({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h4 className="font-semibold text-slate-900 text-base">{cp.name}</h4>
+                      <h4 className="font-semibold text-slate-900 text-base">
+                        {cp.name} {isFirstCheckpoint && <span className="text-xs font-normal text-gray-400">(Start)</span>}
+                      </h4>
                       <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200/60">
                         {cp.distance_from_start_km} km • {cp.elevation_m}m
                       </span>

@@ -103,6 +103,7 @@ export interface DetailedPlan extends Plan {
   is_completed?: boolean;
   completion_time?: string;
   completed_at?: string;
+  notes?: string | null;
 }
 
 export type NotificationType =

@@ -174,7 +174,7 @@ def get_trail_checkpoints(route_waypoint_id: int):
     conn.close()
     return [dict(row) for row in checkpoints]
 
-@app.get("/trail-reports/{mountain_id}")
+
 @app.get("/trail-reports/me")
 def get_my_trail_reports(
     current_user: dict = Depends(get_current_user),
@@ -217,7 +217,7 @@ def get_my_trail_reports(
     conn.close()
 
     return [dict(r) for r in reports]
-
+@app.get("/trail-reports/{mountain_id}")
 def get_trail_reports(mountain_id: int):
     fetch_mountain(mountain_id)
 

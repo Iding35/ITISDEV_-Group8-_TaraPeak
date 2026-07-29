@@ -5,12 +5,12 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { fetchORSRoute, type TrailCheckpoint } from '../api';
 
-function createNumberIcon(number: number, isSelected: boolean) {
+function createNumberIcon(number: number, isSelected: boolean, isSelectable: boolean) {
   return L.divIcon({
     className: 'custom-checkpoint-marker',
     html: `
       <div style="
-        background-color: ${isSelected ? '#16a34a' : '#1e293b'};
+        background-color: ${!isSelectable ? '#9ca3af' : isSelected ? '#16a34a' : '#1e293b'};
         color: white;
         border: 2px solid white;
         border-radius: 50%;
@@ -23,6 +23,8 @@ function createNumberIcon(number: number, isSelected: boolean) {
         font-size: 12px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         transform: ${isSelected ? 'scale(1.25)' : 'scale(1.0)'};
+        opacity: ${!isSelectable ? '0.6' : '1.0'};
+        cursor: ${!isSelectable ? 'not-allowed' : 'pointer'};
         transition: all 0.2s ease-in-out;
       ">
         ${number}
@@ -109,34 +111,48 @@ export default function TrailMap({
           />
         )}
 
-        {checkpoints.map((cp) => {
-          const isSelected = selectedCheckpoint?.checkpoint_id === cp.checkpoint_id;
-          const pos: [number, number] = [Number(cp.latitude), Number(cp.longitude)];
+        {checkpoints.map((cp, index) => {
+  const isSelected = selectedCheckpoint?.checkpoint_id === cp.checkpoint_id;
+  
+  // Example: Disable ONLY the first checkpoint (index 0), leave the rest selectable
+  const isRestricted = index === 0; 
+  const pos: [number, number] = [Number(cp.latitude), Number(cp.longitude)];
 
-          return (
-            <Marker
-              key={cp.checkpoint_id}
-              position={pos}
-              icon={createNumberIcon(cp.sequence_order, isSelected)}
-              eventHandlers={{
-                click: () => onSelectCheckpoint(cp),
-              }}
-            >
-              <Popup>
-                <div className="p-1">
-                  <span className="text-[10px] font-bold text-gray-400 block uppercase">
-                    Checkpoint #{cp.sequence_order}
-                  </span>
-                  <h4 className="font-bold text-slate-900 text-sm">{cp.name}</h4>
-                  {cp.description && <p className="text-xs text-gray-600 mt-1">{cp.description}</p>}
-                  <div className="mt-2 text-xs font-semibold text-emerald-700 bg-emerald-50 p-1.5 rounded border border-emerald-200 inline-block">
-                    Elev: {cp.elevation_m ? `${cp.elevation_m}m` : 'N/A'} • Dist: {cp.distance_from_start_km} km
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
+  return (
+    <Marker
+      key={cp.checkpoint_id}
+      position={pos}
+      icon={createNumberIcon(cp.sequence_order, isSelected, !isRestricted)}
+      eventHandlers={{
+        click: () => {
+          if (!isRestricted) {
+            onSelectCheckpoint(cp);
+          }
+        },
+      }}
+    >
+      <Popup>
+        <div className="p-1">
+          <span className="text-[10px] font-bold text-gray-400 block uppercase">
+            Checkpoint #{cp.sequence_order} {isRestricted && '(Starting Point - Not Selectable)'}
+          </span>
+          <h4 className="font-bold text-slate-900 text-sm">{cp.name}</h4>
+          {cp.description && <p className="text-xs text-gray-600 mt-1">{cp.description}</p>}
+          
+          {isRestricted ? (
+            <div className="mt-2 text-xs font-semibold text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 inline-block">
+              Starting point cannot be selected as a destination.
+            </div>
+          ) : (
+            <div className="mt-2 text-xs font-semibold text-emerald-700 bg-emerald-50 p-1.5 rounded border border-emerald-200 inline-block">
+              Elev: {cp.elevation_m ? `${cp.elevation_m}m` : 'N/A'} • Dist: {cp.distance_from_start_km} km
+            </div>
+          )}
+        </div>
+      </Popup>
+    </Marker>
+  );
+})}
       </MapContainer>
     </div>
   );
