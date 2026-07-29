@@ -15,14 +15,16 @@ import datetime
 import ai
 import weather
 from auth import get_current_user, router as auth_router
-from analytics import router as analytics_router
+from analytics import require_admin, router as analytics_router
 from db import (
     create_notification,
     get_cached_analysis,
+    get_climate_baseline_years,
     get_connection,
     get_weather_forecast,
     init_db,
     save_cached_analysis,
+    save_climate_baseline_year,
     save_weather_forecast,
 )
 
@@ -79,6 +81,183 @@ def get_mountain(mountain_id: int):
     return fetch_mountain(mountain_id)
 
 
+@app.get("/mountains/{mountain_id}/trail-stats")
+def get_mountain_trail_stats(mountain_id: int, target_date: Optional[date] = Query(None, alias="date")):
+    """Live crowd estimate for a chosen date, and historical average
+    completion time from logged trip histories. Public (no auth) since it
+    backs badges on the Explore page, same access level as GET /mountains.
+    """
+    fetch_mountain(mountain_id)
+    query_date = target_date or date.today()
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute(
+        "SELECT COUNT(DISTINCT user_id) AS crowd_count FROM plans WHERE mountain_id = %s AND date = %s",
+        (mountain_id, query_date),
+    )
+    crowd_count = cursor.fetchone()["crowd_count"]
+
+    cursor.execute(
+        """
+        SELECT ROUND(EXTRACT(EPOCH FROM AVG(completion_time)) / 60) AS avg_minutes,
+               COUNT(*) AS completions_logged
+        FROM plans
+        WHERE mountain_id = %s AND is_completed = TRUE AND completion_time IS NOT NULL
+        """,
+        (mountain_id,),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    return {
+        "mountain_id": mountain_id,
+        "date": query_date.isoformat(),
+        "crowd_count": crowd_count,
+        "avg_completion_minutes": row["avg_minutes"],
+        "completions_logged": row["completions_logged"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Admin / registrar management
+# ---------------------------------------------------------------------------
+
+
+def require_admin_or_registrar(current_user: dict = Depends(get_current_user)) -> dict:
+    if current_user.get("role") not in ("admin", "registrar"):
+        raise HTTPException(status_code=403, detail="Admin or registrar access required")
+    return current_user
+
+
+@app.get("/users")
+def list_users(admin: dict = Depends(require_admin)):
+    """Registered platform accounts. Admin-only, per the spec's literal path
+    (distinct from /analytics/users, which the admin dashboard UI calls)."""
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute("""
+        SELECT user_id, first_name, last_name, username, email, role,
+               hiker_experience, login_attempts, locked_until, created_at
+        FROM users
+        ORDER BY created_at DESC;
+    """)
+    users = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [dict(u) for u in users]
+
+
+class NewMountainPayload(BaseModel):
+    mountain_name: str
+    location: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    terrain: Optional[str] = None
+    hazards: Optional[str] = None
+
+
+class NewTrailPayload(BaseModel):
+    name: str
+    difficulty: str
+    estimated_time: float
+    distance_from_start_km: float
+    latitude: float
+    longitude: float
+    elevation_m: Optional[int] = None
+    accessibility: Optional[str] = None
+    sequence_order: Optional[int] = None
+
+
+class CreateTrailRequest(BaseModel):
+    """Either mountain_id (attach to an existing mountain) or new_mountain
+    (create one first) must be given, not both."""
+
+    mountain_id: Optional[int] = None
+    new_mountain: Optional[NewMountainPayload] = None
+    trail: NewTrailPayload
+
+
+@app.post("/trails/create")
+def create_trail(
+    payload: CreateTrailRequest,
+    current_user: dict = Depends(require_admin_or_registrar),
+):
+    if bool(payload.mountain_id) == bool(payload.new_mountain):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of mountain_id or new_mountain",
+        )
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        if payload.new_mountain:
+            nm = payload.new_mountain
+            cursor.execute(
+                """
+                INSERT INTO mountains (mountain_name, location, description, image_url, terrain, hazards)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING mountain_id, mountain_name, location, description, image_url, terrain, hazards, total_hikers
+                """,
+                (nm.mountain_name, nm.location, nm.description, nm.image_url, nm.terrain, nm.hazards),
+            )
+            mountain = dict(cursor.fetchone())
+            mountain_id = mountain["mountain_id"]
+        else:
+            cursor.execute("SELECT * FROM mountains WHERE mountain_id = %s", (payload.mountain_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Mountain not found")
+            mountain = dict(row)
+            mountain_id = mountain["mountain_id"]
+
+        trail = payload.trail
+        if trail.sequence_order is None:
+            # cursor is a RealDictCursor here, so fetchone() is dict-like —
+            # [0] would raise KeyError(0), not index into the row.
+            cursor.execute(
+                "SELECT COALESCE(MAX(sequence_order), 0) + 1 AS next_seq "
+                "FROM route_waypoints WHERE mountain_id = %s",
+                (mountain_id,),
+            )
+            sequence_order = cursor.fetchone()["next_seq"]
+        else:
+            sequence_order = trail.sequence_order
+
+        cursor.execute(
+            """
+            INSERT INTO route_waypoints (
+                mountain_id, sequence_order, name, description, longitude, latitude,
+                elevation_m, difficulty, estimated_time, distance_from_start_km, accessibility
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING waypoint_id, mountain_id, sequence_order, name, difficulty,
+                      estimated_time, distance_from_start_km, elevation_m, accessibility
+            """,
+            (
+                mountain_id, sequence_order, trail.name, None, trail.longitude, trail.latitude,
+                trail.elevation_m, trail.difficulty, trail.estimated_time,
+                trail.distance_from_start_km, trail.accessibility,
+            ),
+        )
+        new_trail = dict(cursor.fetchone())
+
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+    return {"mountain": mountain, "trail": new_trail}
+
+
 # ---------------------------------------------------------------------------
 # Weather / date & location check
 # ---------------------------------------------------------------------------
@@ -131,15 +310,92 @@ def check_weather(
         return {"date_valid": True, "forecast": None}
 
     save_weather_forecast(
-        waypoint_id, 
-        hiking_date, 
-        result["temperature"], 
-        result["humidity"], 
+        waypoint_id,
+        hiking_date,
+        result["temperature"],
+        result["humidity"],
         result["wind_speed"],
         result["precipitation_mm"],
         result["weather_code"]
     )
     return {"date_valid": True, "forecast": result}
+
+
+# Years of history behind the trend line. Kept small: each miss is a live
+# call to Open-Meteo's archive, and 3 years is enough to show a trend without
+# a slow first request for a trail nobody has queried before.
+BASELINE_YEARS_BACK = 3
+
+
+@app.get("/predictive/weather-baseline")
+def get_weather_baseline(
+    mountain_id: int = Query(...),
+    waypoint_id: int = Query(...),
+    date: datetime.date = Query(..., alias="date"),
+):
+    """Historical baseline forecast trend: average conditions for the target
+    month across recent prior years, read from the database and backfilled
+    from Open-Meteo's historical archive on a cache miss.
+    """
+    fetch_mountain(mountain_id)
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT latitude, longitude FROM route_waypoints WHERE waypoint_id = %s AND mountain_id = %s",
+        (waypoint_id, mountain_id),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Waypoint not found")
+    latitude, longitude = row[0], row[1]
+
+    target_month = date.month
+    this_year = datetime.date.today().year
+    years_needed = list(range(this_year - BASELINE_YEARS_BACK, this_year))
+
+    cached = get_climate_baseline_years(waypoint_id, target_month, years_needed)
+    have_years = {r["year"] for r in cached}
+    missing_years = [y for y in years_needed if y not in have_years]
+
+    for year in missing_years:
+        try:
+            averages = weather.fetch_historical_month_average(latitude, longitude, year, target_month)
+        except Exception as e:
+            # One bad year (archive hiccup, a month with no coverage yet)
+            # shouldn't fail the whole trend — skip it and keep the rest.
+            print(f"[weather-baseline] Skipping {year}-{target_month:02d}: {e}")
+            continue
+        if averages:
+            save_climate_baseline_year(waypoint_id, year, target_month, averages)
+
+    trend = get_climate_baseline_years(waypoint_id, target_month, years_needed)
+
+    if trend:
+        temps = [float(r["avg_temperature"]) for r in trend if r["avg_temperature"] is not None]
+        hums = [r["avg_humidity"] for r in trend if r["avg_humidity"] is not None]
+        winds = [float(r["avg_wind_speed"]) for r in trend if r["avg_wind_speed"] is not None]
+        precs = [float(r["avg_precipitation"]) for r in trend if r["avg_precipitation"] is not None]
+        baseline = {
+            "avg_temperature": round(sum(temps) / len(temps), 1) if temps else None,
+            "avg_humidity": round(sum(hums) / len(hums)) if hums else None,
+            "avg_wind_speed": round(sum(winds) / len(winds), 1) if winds else None,
+            "avg_precipitation": round(sum(precs) / len(precs), 1) if precs else None,
+        }
+    else:
+        baseline = None
+
+    return {
+        "waypoint_id": waypoint_id,
+        "month": target_month,
+        "years_requested": years_needed,
+        "trend": trend,
+        "baseline": baseline,
+    }
+
 
 # ---------------------------------------------------------------------------
 # Route waypoints
@@ -1253,7 +1509,13 @@ def _gather_gear_context(mountain_id: int, waypoint_id: int, hiking_date: Option
     cursor.close()
     conn.close()
 
-    weather_data = get_weather_forecast(mountain_id, hiking_date) if hiking_date else None
+    # get_weather_forecast() is keyed on waypoint_id, not mountain_id — passing
+    # mountain_id here (as this did previously) only worked by coincidence for
+    # mountains whose numeric id happens to match one of their own waypoint
+    # ids. For every other mountain it silently returned None, so the gear
+    # agent has been reasoning without real forecast data despite the UI's
+    # "built from... the forecast" claim.
+    weather_data = get_weather_forecast(waypoint_id, hiking_date) if hiking_date else None
 
     return {
         "mountain": mountain,
@@ -1350,24 +1612,92 @@ def regenerate_plan_gear(plan_id: int, current_user: dict = Depends(get_current_
             "source": result.get("source", "ai")}
 
 
+class ChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
 
 
-@app.post("/ai/difficulty/{mountain_id}")
-def ai_difficulty(mountain_id: int, current_user: dict = Depends(get_current_user)):
-    mountain = fetch_mountain(mountain_id)
+class ChatRequest(BaseModel):
+    message: str
+    history: list[ChatMessage] = []
 
-    try:
-        
-        analysis = ai.analyze_difficulty(mountain, current_user)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
 
-    return {"mountain_id": mountain_id, "analysis": analysis, "cached": False}
+def _build_trail_data_snapshot() -> str:
+    """Compact text dump of every mountain and trail, rebuilt per request so
+    the chatbot always answers from the database's current contents. Small
+    enough (3 mountains, ~11 trails) to inject in full rather than needing
+    retrieval — see the note on this in ai.py.
+    """
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute("SELECT * FROM mountains ORDER BY mountain_id")
+    mountains = [dict(m) for m in cursor.fetchall()]
+    cursor.execute("SELECT * FROM route_waypoints ORDER BY mountain_id, sequence_order")
+    trails = [dict(t) for t in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+
+    trails_by_mountain: dict[int, list] = {}
+    for t in trails:
+        trails_by_mountain.setdefault(t["mountain_id"], []).append(t)
+
+    lines = []
+    for m in mountains:
+        lines.append(
+            f"- {m['mountain_name']} ({m.get('location', '')}): terrain={m.get('terrain', '')}, "
+            f"hazards={m.get('hazards', '')}"
+        )
+        for t in trails_by_mountain.get(m["mountain_id"], []):
+            lines.append(
+                f"    · Trail: {t['name']} — difficulty={t.get('difficulty', '')}, "
+                f"distance={t.get('distance_from_start_km', '?')} km, "
+                f"duration={t.get('estimated_time', '?')} hours, "
+                f"elevation={t.get('elevation_m', '?')} m, "
+                f"accessibility={t.get('accessibility', 'Unspecified')}"
+            )
+    return "\n".join(lines)
+
+
+@app.post("/chat")
+def chat(payload: ChatRequest, current_user: dict = Depends(get_current_user)):
+    """Agentic trail-assistant chatbot, grounded in the app's own mountain
+    and trail data. Stateless: the frontend holds and resends history."""
+    if not payload.message.strip():
+        raise HTTPException(status_code=400, detail="Message can't be empty")
+
+    snapshot = _build_trail_data_snapshot()
+    history = [{"role": m.role, "content": m.content} for m in payload.history]
+    result = ai.chat_reply(payload.message, history, snapshot)
+    return result
+
+
+@app.get("/prescriptive/safety-index")
+def get_safety_index(
+    mountain_id: int,
+    waypoint_id: int = Query(...),
+    hiking_date: date = Query(None, alias="date"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Prescriptive decision support: a deterministic security index plus an
+    AI-authored checklist, from real-time conditions, recent safety reports,
+    and the trail's structural profile."""
+    context = _gather_gear_context(mountain_id, waypoint_id, hiking_date, current_user["user_id"])
+    result = ai.generate_prescriptive_safety(context)
+    return {
+        "mountain_id": mountain_id,
+        "waypoint_id": waypoint_id,
+        "security_index": result["security_index"],
+        "risk_label": result["risk_label"],
+        "reasons": result["reasons"],
+        "summary": result["summary"],
+        "checklist": result["checklist"],
+        "source": result["source"],
+    }
 
 
 @app.post("/ai/route-optimization/{mountain_id}")
 def ai_route_optimization(
-    mountain_id: int, 
+    mountain_id: int,
     current_user: dict = Depends(get_current_user)
 ):
     mountain = fetch_mountain(mountain_id)
@@ -1389,7 +1719,11 @@ def ai_route_optimization(
         plan = ai.optimize_route(
             mountain=mountain,
             waypoints=waypoints,
-            user_experience=current_user.get("hiking_experience")
+            # get_current_user() returns hiker_experience (see auth.py) — the
+            # previous key here, "hiking_experience", never matched, so this
+            # always evaluated to None and the pacing prompt silently ignored
+            # the hiker's actual experience level.
+            user_experience=current_user.get("hiker_experience"),
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")

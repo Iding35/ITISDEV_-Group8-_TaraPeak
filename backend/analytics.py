@@ -1,5 +1,6 @@
 import psycopg2.extras
 from fastapi import APIRouter, Depends, HTTPException, Query
+import ai
 from db import get_connection
 from auth import get_current_user
 
@@ -111,10 +112,11 @@ def get_popularity_drivers(admin: dict = Depends(require_admin)):
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cursor.execute("""
-        SELECT 
+        SELECT
             m.mountain_name,
             COUNT(DISTINCT p.plan_id) AS total_plans,
             COALESCE(MAX(rw.difficulty), 'Moderate') AS difficulty,
+            COALESCE(MAX(rw.accessibility), 'Unspecified') AS accessibility,
             ROUND(AVG(tr.rating)::numeric, 1) AS avg_rating,
             COALESCE(MAX(rw.distance_from_start_km), 0) AS distance
         FROM mountains m
@@ -148,6 +150,103 @@ def get_all_users(admin: dict = Depends(require_admin)):
     cursor.close()
     conn.close()
     return users
+
+@router.get("/avg-completion-time")
+def get_avg_completion_time(admin: dict = Depends(require_admin)):
+    """Average logged completion time per trail, from completed plan histories."""
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute("""
+        SELECT
+            m.mountain_id,
+            m.mountain_name,
+            COALESCE(rw.name, 'General Trail') AS trail_name,
+            COUNT(p.plan_id) AS completed_count,
+            ROUND(EXTRACT(EPOCH FROM AVG(p.completion_time)) / 60) AS avg_minutes
+        FROM plans p
+        JOIN mountains m ON m.mountain_id = p.mountain_id
+        LEFT JOIN route_waypoints rw ON rw.waypoint_id = p.waypoint_id
+        WHERE p.is_completed = TRUE AND p.completion_time IS NOT NULL
+        GROUP BY m.mountain_id, m.mountain_name, rw.waypoint_id, rw.name
+        ORDER BY avg_minutes DESC NULLS LAST;
+    """)
+    by_trail = [dict(row) for row in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT ROUND(EXTRACT(EPOCH FROM AVG(completion_time)) / 60) AS avg_minutes,
+               COUNT(*) AS completed_count
+        FROM plans
+        WHERE is_completed = TRUE AND completion_time IS NOT NULL;
+    """)
+    overall = dict(cursor.fetchone())
+
+    cursor.close()
+    conn.close()
+    return {"overall": overall, "by_trail": by_trail}
+
+
+@router.get("/diagnostic-correlations")
+def get_diagnostic_correlations(admin: dict = Depends(require_admin)):
+    """Agentic diagnostic analysis: how trail-selection frequency and average
+    rating vary across difficulty, terrain, and accessibility."""
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cursor.execute("""
+        SELECT
+            rw.difficulty,
+            COUNT(DISTINCT p.plan_id) AS times_selected,
+            ROUND(AVG(tr.rating)::numeric, 2) AS avg_rating,
+            COUNT(DISTINCT tr.report_id) AS report_count
+        FROM route_waypoints rw
+        LEFT JOIN plans p ON p.waypoint_id = rw.waypoint_id
+        LEFT JOIN trail_reports tr ON tr.waypoint_id = rw.waypoint_id
+        GROUP BY rw.difficulty
+        ORDER BY times_selected DESC;
+    """)
+    by_difficulty = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT
+            m.terrain,
+            COUNT(DISTINCT p.plan_id) AS times_selected,
+            ROUND(AVG(tr.rating)::numeric, 2) AS avg_rating,
+            COUNT(DISTINCT tr.report_id) AS report_count
+        FROM route_waypoints rw
+        JOIN mountains m ON m.mountain_id = rw.mountain_id
+        LEFT JOIN plans p ON p.waypoint_id = rw.waypoint_id
+        LEFT JOIN trail_reports tr ON tr.waypoint_id = rw.waypoint_id
+        GROUP BY m.terrain
+        ORDER BY times_selected DESC;
+    """)
+    by_terrain = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT
+            rw.accessibility,
+            COUNT(DISTINCT p.plan_id) AS times_selected,
+            ROUND(AVG(tr.rating)::numeric, 2) AS avg_rating,
+            COUNT(DISTINCT tr.report_id) AS report_count
+        FROM route_waypoints rw
+        LEFT JOIN plans p ON p.waypoint_id = rw.waypoint_id
+        LEFT JOIN trail_reports tr ON tr.waypoint_id = rw.waypoint_id
+        GROUP BY rw.accessibility
+        ORDER BY times_selected DESC;
+    """)
+    by_accessibility = [dict(r) for r in cursor.fetchall()]
+
+    cursor.close()
+    conn.close()
+
+    stats = {
+        "by_difficulty": by_difficulty,
+        "by_terrain": by_terrain,
+        "by_accessibility": by_accessibility,
+    }
+    diagnosis = ai.diagnose_trail_patterns(stats)
+
+    return {**stats, "narrative": diagnosis["narrative"], "source": diagnosis["source"]}
+
 
 @router.get("/most-taken-trails")
 def get_most_taken_trails(admin: dict = Depends(require_admin)):

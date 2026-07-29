@@ -567,3 +567,368 @@ def optimize_route(mountain: dict, waypoints: list, user_experience: str = None)
     except Exception as e:
         print(f"[AI Fallback] DeepSeek API error: {e}. Generating local fallback pacing/route optimization plan.")
         return _generate_fallback_pacing(mountain, waypoints)
+
+
+# ---------------------------------------------------------------------------
+# Diagnostic analysis: trail selection frequency vs. categorical attributes
+# ---------------------------------------------------------------------------
+
+
+def _format_group_rows(rows: list, label_key: str) -> str:
+    lines = []
+    for r in rows:
+        label = r.get(label_key) or "Unspecified"
+        rating = r.get("avg_rating")
+        rating_str = f"{rating}/5" if rating is not None else "no ratings yet"
+        lines.append(
+            f"- {label}: selected {r.get('times_selected', 0)} time(s), "
+            f"average rating {rating_str} ({r.get('report_count', 0)} reports)"
+        )
+    return "\n".join(lines) if lines else "- No data recorded yet."
+
+
+def _generate_fallback_diagnostic(stats: dict) -> dict:
+    """Rule-based diagnostic summary: picks the highest- and lowest-selected
+    group in each dimension and states the comparison plainly, without
+    claiming statistical correlation the data can't support.
+    """
+    findings = []
+    for dimension, rows in (
+        ("difficulty", stats.get("by_difficulty", [])),
+        ("terrain", stats.get("by_terrain", [])),
+        ("accessibility", stats.get("by_accessibility", [])),
+    ):
+        ranked = sorted(rows, key=lambda r: r.get("times_selected") or 0, reverse=True)
+        if len(ranked) < 2:
+            continue
+        top, bottom = ranked[0], ranked[-1]
+        if (top.get("times_selected") or 0) == (bottom.get("times_selected") or 0):
+            continue
+        top_label = top.get(dimension) or "Unspecified"
+        bottom_label = bottom.get(dimension) or "Unspecified"
+        findings.append(
+            f"By {dimension}, {top_label} trails are hiked most often "
+            f"({top.get('times_selected', 0)} plans, avg rating "
+            f"{top.get('avg_rating') if top.get('avg_rating') is not None else 'n/a'}), "
+            f"while {bottom_label} trails are hiked least "
+            f"({bottom.get('times_selected', 0)} plans)."
+        )
+
+    if not findings:
+        findings.append(
+            "Not enough plan history yet to compare selection frequency across groups."
+        )
+
+    return {"narrative": " ".join(findings), "source": "fallback"}
+
+
+def diagnose_trail_patterns(stats: dict) -> dict:
+    """Agentic diagnostic step: takes trail-selection frequency grouped by
+    difficulty, terrain, and accessibility (each paired with average trail
+    rating), and identifies/articulates the patterns.
+
+    This does not compute a Pearson correlation — the groups are categorical
+    labels, not continuous variables, so a correlation coefficient would be
+    meaningless. Instead the model is given the grouped counts/ratings
+    directly and asked to name the real relationships they show (which
+    categories dominate selection, whether popularity tracks with rating,
+    where they diverge) — the standard, honest reading of categorical
+    diagnostic data. Falls back to a rule-based comparison if the model is
+    unreachable.
+    """
+    try:
+        system_prompt = (
+            "You are a diagnostic analytics agent for the TaraPeak hiking app. "
+            "You are given how often trails were selected for a hike plan, and their "
+            "average hiker rating, grouped by three categorical attributes: difficulty, "
+            "terrain type, and accessibility. Identify concrete patterns: which "
+            "categories dominate selection, whether popularity tracks with rating or "
+            "diverges from it, and one actionable implication for trip planning or trail "
+            "promotion. Do not describe this as a statistical correlation coefficient — "
+            "these are categorical groups, not continuous variables. Reference actual "
+            "numbers from the data. 3-4 short paragraphs or bullet points, concise and "
+            "concrete, no generic filler."
+        )
+        user_prompt = (
+            f"Selection frequency and rating by DIFFICULTY:\n"
+            f"{_format_group_rows(stats.get('by_difficulty', []), 'difficulty')}\n\n"
+            f"Selection frequency and rating by TERRAIN:\n"
+            f"{_format_group_rows(stats.get('by_terrain', []), 'terrain')}\n\n"
+            f"Selection frequency and rating by ACCESSIBILITY:\n"
+            f"{_format_group_rows(stats.get('by_accessibility', []), 'accessibility')}\n"
+        )
+        narrative = _chat(system_prompt, user_prompt, max_tokens=700)
+        return {"narrative": narrative, "source": "ai"}
+    except Exception as e:
+        print(f"[AI Fallback] Diagnostic agent error: {e}. Generating rule-based comparison.")
+        return _generate_fallback_diagnostic(stats)
+
+
+# ---------------------------------------------------------------------------
+# Prescriptive decision support: unified security index + gear/action checklist
+# ---------------------------------------------------------------------------
+
+# Condition strings that indicate a hazard, matched against recent trail_reports.
+# Keep in sync with the CONDITIONS list on the trail-report form (Dashboard.tsx).
+_ADVERSE_CONDITIONS = {
+    "Muddy / Slippery",
+    "Foggy / Low Visibility",
+    "Steep Sections",
+    "River Crossing",
+    "Rocky Terrain",
+}
+
+
+def compute_security_index(context: dict) -> dict:
+    """Deterministic 0-100 safety score (100 = safest) from real-time
+    conditions, recent safety reports, and the trail's structural profile.
+
+    Kept separate from the LLM call on purpose: a numeric index used for a
+    go/no-go decision needs to be reproducible and auditable, not something
+    that can vary between identical requests. The model's job (below) is to
+    turn this score and the signals behind it into human guidance, not to
+    invent the number itself.
+    """
+    score = 100
+    reasons = []
+
+    weather = context.get("weather") or {}
+    temp = weather.get("temperature")
+    wind = weather.get("wind_speed")
+    precip = weather.get("precipitation_mm")
+
+    if temp is not None:
+        if temp < 5:
+            score -= 20
+            reasons.append(f"Near-freezing forecast ({temp}°C) raises hypothermia risk.")
+        elif temp < 10:
+            score -= 10
+            reasons.append(f"Cold forecast ({temp}°C) calls for insulating layers.")
+        elif temp > 32:
+            score -= 10
+            reasons.append(f"High heat forecast ({temp}°C) raises heat-exhaustion risk.")
+
+    if wind is not None:
+        if wind > 40:
+            score -= 20
+            reasons.append(f"Severe wind forecast ({wind} km/h) is dangerous on exposed ridgelines.")
+        elif wind > 25:
+            score -= 10
+            reasons.append(f"Strong wind forecast ({wind} km/h) affects footing on exposed sections.")
+
+    if precip is not None:
+        if precip > 30:
+            score -= 20
+            reasons.append(f"Heavy rainfall forecast ({precip} mm) raises landslide/flash-flood risk.")
+        elif precip > 10:
+            score -= 10
+            reasons.append(f"Moderate rainfall forecast ({precip} mm) will make the trail slick.")
+
+    trail = context.get("trail") or {}
+    difficulty = (trail.get("difficulty") or "").strip().lower()
+    if difficulty == "hard":
+        score -= 15
+        reasons.append("Trail is rated Hard, raising baseline physical risk.")
+    elif difficulty == "moderate":
+        score -= 5
+
+    elevation = trail.get("elevation_m") or 0
+    if elevation and elevation >= 2500:
+        score -= 10
+        reasons.append(f"Peak elevation {elevation} m carries altitude-related risk.")
+
+    reports = context.get("reports") or []
+    adverse_hits = [r for r in reports if r.get("condition") in _ADVERSE_CONDITIONS]
+    if adverse_hits:
+        penalty = min(20, 5 * len(adverse_hits))
+        score -= penalty
+        seen = ", ".join(sorted({r["condition"] for r in adverse_hits}))
+        reasons.append(f"Recent hiker reports flagged: {seen}.")
+
+    ratings = [r.get("rating") for r in reports if r.get("rating") is not None]
+    if ratings:
+        avg_rating = sum(ratings) / len(ratings)
+        if avg_rating < 3:
+            score -= 10
+            reasons.append(f"Recent reports average only {avg_rating:.1f}/5.")
+
+    score = max(0, min(100, score))
+    if score >= 80:
+        label = "Low Risk"
+    elif score >= 60:
+        label = "Moderate Risk"
+    elif score >= 40:
+        label = "Elevated Risk"
+    else:
+        label = "High Risk"
+
+    return {"security_index": score, "risk_label": label, "reasons": reasons}
+
+
+def _generate_fallback_checklist(context: dict) -> list:
+    """Rule-based checklist used when the model is unreachable. Mirrors the
+    signals compute_security_index() already read, so it stays consistent
+    with the numeric score even offline.
+    """
+    weather = context.get("weather") or {}
+    trail = context.get("trail") or {}
+    items = [
+        {"item": "Trail map or GPS track downloaded offline", "reason": "Cell coverage is unreliable on most Cordillera trails.", "is_critical": True},
+        {"item": "First aid kit", "reason": "Standard for any hike, especially on rated trails with reported hazards.", "is_critical": True},
+        {"item": "Headlamp with spare batteries", "reason": "Covers any delay that pushes the hike past daylight.", "is_critical": True},
+    ]
+    if (weather.get("temperature") or 20) < 10:
+        items.append({"item": "Insulating layer and gloves", "reason": f"Forecast of {weather.get('temperature')}°C.", "is_critical": True})
+    if (weather.get("precipitation_mm") or 0) > 10:
+        items.append({"item": "Rain shell and dry bag", "reason": f"{weather.get('precipitation_mm')} mm of rain forecast.", "is_critical": True})
+    if (weather.get("wind_speed") or 0) > 25:
+        items.append({"item": "Windproof outer layer", "reason": f"{weather.get('wind_speed')} km/h wind forecast.", "is_critical": False})
+    if (trail.get("elevation_m") or 0) >= 2500:
+        items.append({"item": "Electrolytes and a conservative pace", "reason": f"Peak elevation {trail.get('elevation_m')} m.", "is_critical": False})
+    if (trail.get("difficulty") or "").lower() == "hard":
+        items.append({"item": "Trekking poles", "reason": "Trail is rated Hard.", "is_critical": False})
+    for r in (context.get("reports") or [])[:3]:
+        if r.get("condition") in _ADVERSE_CONDITIONS:
+            items.append({
+                "item": f"Extra caution: {r['condition'].lower()}",
+                "reason": f"Reported by a recent hiker: \"{r.get('comment', '')[:80]}\"",
+                "is_critical": False,
+            })
+    return items
+
+
+def generate_prescriptive_safety(context: dict) -> dict:
+    """Prescriptive step: compute the deterministic security index, then ask
+    the model to explain it and produce a checklist array. Falls back to a
+    rule-based checklist (still keyed off the same computed index) if the
+    model is unreachable.
+    """
+    index_result = compute_security_index(context)
+
+    try:
+        mountain = context.get("mountain") or {}
+        trail = context.get("trail") or {}
+        weather = context.get("weather") or {}
+        reports = context.get("reports") or []
+
+        system_prompt = (
+            "You are a prescriptive safety-planning agent for the TaraPeak hiking app. "
+            "You are given a pre-computed security index (0-100, 100 = safest) and the "
+            "reasons behind it. Do not recompute or contradict the index. Return ONLY a "
+            "JSON object, no prose, no code fence, shaped as:\n"
+            '{"summary": "<2-3 sentence explanation of the index in plain language>", '
+            '"checklist": [{"item": "...", "reason": "...", "is_critical": true}]}\n'
+            "Return 6-10 checklist items. is_critical true only for items whose absence "
+            "could end the hike or endanger the hiker. Every reason must cite a specific "
+            "signal from the input (a forecast number, a reported condition, the trail's "
+            "own difficulty/elevation) — never generic advice."
+        )
+        user_prompt = (
+            f"Mountain: {mountain.get('mountain_name', '')}\n"
+            f"Trail: {trail.get('name', '')} — {trail.get('difficulty', '')}, "
+            f"{trail.get('elevation_m', '?')} m elevation\n"
+            f"Known hazards: {mountain.get('hazards', '')}\n"
+            f"Forecast: {weather.get('temperature', '?')}°C, {weather.get('wind_speed', '?')} km/h wind, "
+            f"{weather.get('precipitation_mm', '?')} mm precipitation\n"
+            f"Security index: {index_result['security_index']}/100 ({index_result['risk_label']})\n"
+            f"Reasons: {'; '.join(index_result['reasons']) or 'No adverse signals detected.'}\n"
+            f"Recent reports: {'; '.join(r.get('condition', '') for r in reports[:5]) or 'None'}\n"
+        )
+        parsed = _extract_json(_chat(system_prompt, user_prompt, max_tokens=1200, json_mode=True))
+        checklist = parsed.get("checklist") if isinstance(parsed, dict) else None
+        if not isinstance(checklist, list) or not checklist:
+            raise ValueError("Prescriptive agent returned no usable checklist")
+
+        clean_checklist = []
+        for entry in checklist:
+            if not isinstance(entry, dict) or not entry.get("item"):
+                continue
+            clean_checklist.append({
+                "item": str(entry["item"]).strip()[:150],
+                "reason": str(entry.get("reason") or "").strip(),
+                "is_critical": bool(entry.get("is_critical", False)),
+            })
+        if not clean_checklist:
+            raise ValueError("Prescriptive agent returned no usable checklist items")
+
+        return {
+            **index_result,
+            "summary": str(parsed.get("summary") or "").strip(),
+            "checklist": clean_checklist,
+            "source": "ai",
+        }
+    except Exception as e:
+        print(f"[AI Fallback] Prescriptive agent error: {e}. Generating rule-based checklist.")
+        return {
+            **index_result,
+            "summary": (
+                f"Security index {index_result['security_index']}/100 ({index_result['risk_label']}). "
+                + (" ".join(index_result["reasons"]) or "No significant adverse signals detected.")
+            ),
+            "checklist": _generate_fallback_checklist(context),
+            "source": "fallback",
+        }
+
+
+# ---------------------------------------------------------------------------
+# Chatbot: grounded Q&A over the app's own trail data
+# ---------------------------------------------------------------------------
+
+CHAT_HISTORY_LIMIT = 12  # most recent turns kept, oldest trimmed first
+CHAT_SYSTEM_PROMPT = (
+    "You are TaraPeak's trail assistant. Help hikers find mountains and trails, compare "
+    "difficulty/distance/duration, understand hazards, and figure out what to bring. "
+    "Answer ONLY from the CURRENT TRAIL DATA block below — it is the full, current list of "
+    "every mountain and trail in the app. If something isn't in that data (a mountain not "
+    "listed, a live weather number, availability), say TaraPeak doesn't have that rather than "
+    "guessing. Keep answers short and conversational — 2-4 sentences unless the hiker asks for "
+    "a list. Do not invent trail names, distances, or hazards not present in the data."
+)
+
+
+def _generate_fallback_chat_reply(message: str) -> str:
+    """Used only when the model is unreachable — a chatbot can't run its
+    normal rule-based fallback the way a single-shot analysis can, since the
+    reply has to address whatever the hiker actually typed. This is honest
+    about that limit rather than pretending to answer.
+    """
+    return (
+        "The AI assistant is temporarily unavailable, so I can't answer that right now. "
+        "In the meantime, the Explore page lists every mountain with its terrain and hazards, "
+        "and each trail's detail page has difficulty, distance, and duration."
+        + (f" (Your question: \"{message.strip()[:200]}\")" if message.strip() else "")
+    )
+
+
+def chat_reply(message: str, history: list, trail_data_snapshot: str) -> dict:
+    """One turn of the trail-assistant chatbot.
+
+    Stateless by design: the caller (frontend) holds the conversation and
+    resends it each turn, same pattern as every other AI endpoint in this
+    file. `trail_data_snapshot` is a compact text dump of every mountain and
+    trail, rebuilt fresh per request so the assistant is always grounded in
+    the database's current contents rather than the model's training data.
+    """
+    try:
+        trimmed_history = history[-CHAT_HISTORY_LIMIT:]
+        messages = [
+            {"role": "system", "content": f"{CHAT_SYSTEM_PROMPT}\n\nCURRENT TRAIL DATA:\n{trail_data_snapshot}"},
+        ]
+        for turn in trimmed_history:
+            role = turn.get("role")
+            content = turn.get("content")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": message})
+
+        client = get_client()
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=messages,
+            temperature=0.4,
+            max_tokens=400,
+        )
+        return {"reply": response.choices[0].message.content.strip(), "source": "ai"}
+    except Exception as e:
+        print(f"[AI Fallback] Chat agent error: {e}. Returning unavailability notice.")
+        return {"reply": _generate_fallback_chat_reply(message), "source": "fallback"}
