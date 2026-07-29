@@ -357,9 +357,7 @@ export async function updatePlanNotes(
       'Content-Type': 'application/json',
       ...authHeaders(),
     },
-    body: JSON.stringify({
-      notes,
-    }),
+    body: JSON.stringify({ notes }),
   });
 
   if (!response.ok) {

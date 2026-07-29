@@ -378,35 +378,36 @@ export default function PlanDetail() {
     }
   }
 
-  async function handleSaveNotes() {
-    if (!plan) return;
-    setIsSavingNotes(true);
-    setNotesError(null);
-    try {
-      if (typeof updatePlanNotes === 'function') {
-        await updatePlanNotes(plan.plan_id, notes);
-      }
-      setIsEditingNotes(false);
-    } catch (err) {
-      setNotesError(err instanceof Error ? err.message : 'Failed to save notes');
-    } finally {
-      setIsSavingNotes(false);
+    async function handleSaveNotes() {
+      if (!plan) return;
+  setIsSavingNotes(true);
+  setNotesError(null);
+  try {
+    if (typeof updatePlanNotes === 'function') {
+      const updatedPlan = await updatePlanNotes(plan.plan_id, notes);
+      setPlan(updatedPlan); 
+      setNotes(updatedPlan.notes || '');
     }
+    setIsEditingNotes(false);
+  } catch (err) {
+    setNotesError(err instanceof Error ? err.message : 'Failed to save notes');
+  } finally {
+    setIsSavingNotes(false);
   }
+}
+    if (authLoading) return null;
+    if (!user) return <Navigate to="/login" replace />;
 
-  if (authLoading) return null;
-  if (!user) return <Navigate to="/login" replace />;
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-surface text-on-surface">
-        <Navbar />
-        <main className="max-w-5xl mx-auto px-margin-desktop py-lg">
-          <p className="text-on-surface-variant">Loading plan details...</p>
-        </main>
-      </div>
-    );
-  }
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-surface text-on-surface">
+          <Navbar />
+          <main className="max-w-5xl mx-auto px-margin-desktop py-lg">
+            <p className="text-on-surface-variant">Loading plan details...</p>
+          </main>
+        </div>
+      );
+    }
 
   if (error || !plan) {
     return (

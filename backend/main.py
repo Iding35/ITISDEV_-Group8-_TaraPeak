@@ -665,6 +665,37 @@ def delete_plan(plan_id: int, current_user: dict = Depends(get_current_user)):
 
     return {"deleted": True}
 
+class NotesUpdate(BaseModel):
+    notes: str
+
+@app.patch("/plans/{plan_id}/notes")
+def update_plan_notes_route(plan_id: int, payload: NotesUpdate) -> dict:
+    """Update the announcement notes for a specific plan."""
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        cursor.execute(
+            """
+            UPDATE plans 
+            SET notes = %s 
+            WHERE plan_id = %s 
+            RETURNING *
+            """,
+            (payload.notes, plan_id) # Use payload.notes here
+        )
+        updated_row = cursor.fetchone()
+        conn.commit()
+        if not updated_row:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        return dict(updated_row)
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+        conn.close()
+
+
 
 # ---------------------------------------------------------------------------
 # Group plans: invite members to a shared plan
@@ -863,6 +894,7 @@ def get_plan_detail(plan_id: int, current_user: dict = Depends(get_current_user)
             p.ai_difficulty_analysis,
             p.ai_safety_analysis,
             p.ai_route_plan,
+            p.notes,
 
             p.is_completed,          
                 p.completed_at::text,    
