@@ -541,10 +541,15 @@ export async function fetchSafetyAnalysis(
   return data.analysis;
 }
 
-export async function fetchRouteOptimization(mountainId: number): Promise<{ plan: string }> {
+export async function fetchRouteOptimization(
+  mountainId: number
+): Promise<{ plan: string }> {
   const res = await fetch(`${API_URL}/ai/route-optimization/${mountainId}`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: {
+      ...authHeaders(),
+      'Content-Type': 'application/json',
+    },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: 'Failed' }));

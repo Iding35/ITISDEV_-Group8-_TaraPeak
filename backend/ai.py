@@ -522,15 +522,30 @@ def recommend_gear(context: dict) -> dict:
         return _generate_fallback_gear(context)
 
 
-def optimize_route(mountain: dict, waypoints: list) -> str:
+def optimize_route(mountain: dict, waypoints: list, user_experience: str = None) -> str:
     try:
         system_prompt = (
-            "You are a trail pacing expert for the TaraPeak app. Mountain trails are linear (one path up, "
-            "the same path back), so 'optimizing the route' means recommending pacing and timing, not "
-            "reordering waypoints. Given the ordered waypoints with distance and elevation, produce: a "
-            "suggested start time, a rough time budget between each waypoint, and 1-2 notes on where to be "
-            "cautious (steep elevation gain between waypoints, etc). Keep it concise and practical."
-        )
+        "You are an expert hiking route strategist and pacing analyst for the TaraPeak app. "
+    "Each waypoint represents a possible trail destination that a user may choose to hike toward. "
+    "The user may not necessarily complete the entire mountain route. "
+    "Recommend the single best waypoint based on the user's hiking experience, mountain difficulty, terrain, elevation, distance, and estimated hiking time. "
+    "Limit all analysis to the recommended waypoint and the route leading to it. "
+    "Do not analyze or reference trail sections beyond the recommended waypoint.\n\n"
+
+    "Your response MUST follow this structure:\n\n"
+
+    "1. **Recommended Trail:** State the single recommended waypoint.\n\n"
+
+    "2. **Pacing Level:** Classify the pace as "
+    "[Beginner-Friendly / Moderate Pace / Demanding / Expert Stride].\n\n"
+
+    "3. **Route Optimization & Analysis:** Explain why this waypoint is the best destination for the user. "
+    "Discuss terrain, elevation, distance, pacing efficiency, and suitability for the user's hiking experience. "
+    "Base the analysis only on the trail leading to this waypoint, not the remainder of the mountain.\n"
+
+    "4. **Pacing Strategy:** Recommend how the user should manage their pace while hiking toward the recommended waypoint.\n\n"
+
+    "5. **Rest Timing:** Recommend appropriate rest timing before reaching the recommended waypoint based on elapsed hiking time and terrain.")
         
         waypoint_lines = "\n".join(
             f"{w['sequence_order']}. {w['name']} — {w.get('distance_from_start_km', 0)} km from start, "
@@ -542,6 +557,7 @@ def optimize_route(mountain: dict, waypoints: list) -> str:
         
         user_prompt = (
             f"Mountain: {mountain.get('mountain_name', '')}\n"
+            f"Hiking Experience: {user_experience or 'Not specified'}\n"
             f"Total distance: {total_dist} km\n"
             f"Estimated total time: {mountain.get('estimated_time', 'N/A')} hours\n"
             f"Difficulty: {mountain.get('difficulty', 'N/A')}\n"

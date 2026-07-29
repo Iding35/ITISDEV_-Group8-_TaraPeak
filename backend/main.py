@@ -1350,8 +1350,26 @@ def regenerate_plan_gear(plan_id: int, current_user: dict = Depends(get_current_
             "source": result.get("source", "ai")}
 
 
+
+
+@app.post("/ai/difficulty/{mountain_id}")
+def ai_difficulty(mountain_id: int, current_user: dict = Depends(get_current_user)):
+    mountain = fetch_mountain(mountain_id)
+
+    try:
+        
+        analysis = ai.analyze_difficulty(mountain, current_user)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
+
+    return {"mountain_id": mountain_id, "analysis": analysis, "cached": False}
+
+
 @app.post("/ai/route-optimization/{mountain_id}")
-def ai_route_optimization(mountain_id: int, current_user: dict = Depends(get_current_user)):
+def ai_route_optimization(
+    mountain_id: int, 
+    current_user: dict = Depends(get_current_user)
+):
     mountain = fetch_mountain(mountain_id)
 
     conn = get_connection()
@@ -1367,16 +1385,15 @@ def ai_route_optimization(mountain_id: int, current_user: dict = Depends(get_cur
     if not waypoints:
         raise HTTPException(status_code=404, detail="No route data available for this trail")
 
-    cached = get_cached_analysis(mountain_id, "route")
-    if cached is not None:
-        return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": cached, "cached": True}
-
     try:
-        plan = ai.optimize_route(mountain, waypoints)
+        plan = ai.optimize_route(
+            mountain=mountain,
+            waypoints=waypoints,
+            user_experience=current_user.get("hiking_experience")
+        )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
 
-    save_cached_analysis(mountain_id, "route", plan)
     return {"mountain_id": mountain_id, "waypoints": waypoints, "plan": plan, "cached": False}
 
 @app.get("/mountains/{mountain_id}/trailheads")
