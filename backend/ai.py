@@ -871,19 +871,93 @@ def generate_prescriptive_safety(context: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Chatbot: grounded Q&A over the app's own trail data
+# Chatbot: grounded Q&A over the app's own trail data, via DeepSeek tool-calling
 # ---------------------------------------------------------------------------
+#
+# Earlier version injected a full dump of every mountain/trail into the
+# system prompt on every turn. Fine at 3 mountains, but it doesn't scale and
+# it had no access to trail reports or weather at all. This version instead
+# gives the model function-calling tools (DeepSeek's API is OpenAI-compatible
+# and supports the same `tools` parameter as regular OpenAI chat completions
+# — same client, same base_url, no new provider) and lets it look up only
+# what a given question actually needs.
 
 CHAT_HISTORY_LIMIT = 12  # most recent turns kept, oldest trimmed first
+MAX_TOOL_ITERATIONS = 4  # hard cap so a confused model can't loop forever
 CHAT_SYSTEM_PROMPT = (
     "You are TaraPeak's trail assistant. Help hikers find mountains and trails, compare "
-    "difficulty/distance/duration, understand hazards, and figure out what to bring. "
-    "Answer ONLY from the CURRENT TRAIL DATA block below — it is the full, current list of "
-    "every mountain and trail in the app. If something isn't in that data (a mountain not "
-    "listed, a live weather number, availability), say TaraPeak doesn't have that rather than "
-    "guessing. Keep answers short and conversational — 2-4 sentences unless the hiker asks for "
-    "a list. Do not invent trail names, distances, or hazards not present in the data."
+    "difficulty/distance/duration, understand hazards, check recent trail conditions, and "
+    "figure out what to bring. You have tools to look up mountains, trails, recent hiker trail "
+    "reports, and cached weather — call them whenever a question needs specifics rather than "
+    "guessing or relying on training data. If a tool returns nothing, or the question is about "
+    "something TaraPeak doesn't cover (a mountain not in the app, live weather far outside the "
+    "cached window), say so plainly rather than inventing an answer. Keep answers short and "
+    "conversational — 2-4 sentences unless the hiker asks for a list."
 )
+
+CHAT_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "list_mountains",
+            "description": "List mountains in the TaraPeak app, with location, terrain, and hazards. Optionally filter by name.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "search": {"type": "string", "description": "Optional partial mountain name to filter by."},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_trails",
+            "description": "List the trails on one mountain, with difficulty, distance, duration, elevation, and accessibility.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mountain_name": {"type": "string", "description": "The mountain's name, e.g. 'Mount Pulag'."},
+                },
+                "required": ["mountain_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_recent_trail_reports",
+            "description": "Recent hiker-submitted trail condition reports (rating, condition, comment) for a mountain, optionally narrowed to one trail.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mountain_name": {"type": "string"},
+                    "trail_name": {"type": "string", "description": "Optional, narrows results to one trail."},
+                },
+                "required": ["mountain_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_cached_weather",
+            "description": (
+                "Cached forecast for one trail and date, if TaraPeak has already looked it up. "
+                "Only covers roughly the next two weeks — returns nothing outside that window."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mountain_name": {"type": "string"},
+                    "trail_name": {"type": "string"},
+                    "date": {"type": "string", "description": "YYYY-MM-DD"},
+                },
+                "required": ["mountain_name", "trail_name", "date"],
+            },
+        },
+    },
+]
 
 
 def _generate_fallback_chat_reply(message: str) -> str:
@@ -900,20 +974,23 @@ def _generate_fallback_chat_reply(message: str) -> str:
     )
 
 
-def chat_reply(message: str, history: list, trail_data_snapshot: str) -> dict:
+def chat_reply(message: str, history: list, tool_executors: dict) -> dict:
     """One turn of the trail-assistant chatbot.
 
     Stateless by design: the caller (frontend) holds the conversation and
     resends it each turn, same pattern as every other AI endpoint in this
-    file. `trail_data_snapshot` is a compact text dump of every mountain and
-    trail, rebuilt fresh per request so the assistant is always grounded in
-    the database's current contents rather than the model's training data.
+    file. The tool round-trip below is internal to this one call — the
+    frontend only ever sees the final natural-language reply, never the tool
+    calls behind it, so the outer conversation format doesn't change.
+
+    `tool_executors` maps each tool name in CHAT_TOOLS to a Python callable
+    (kept in main.py, which already owns all DB access) — this function only
+    knows how to ask DeepSeek to call a tool and run whatever's handed to it,
+    not how any tool actually queries the database.
     """
     try:
         trimmed_history = history[-CHAT_HISTORY_LIMIT:]
-        messages = [
-            {"role": "system", "content": f"{CHAT_SYSTEM_PROMPT}\n\nCURRENT TRAIL DATA:\n{trail_data_snapshot}"},
-        ]
+        messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
         for turn in trimmed_history:
             role = turn.get("role")
             content = turn.get("content")
@@ -922,13 +999,64 @@ def chat_reply(message: str, history: list, trail_data_snapshot: str) -> dict:
         messages.append({"role": "user", "content": message})
 
         client = get_client()
+
+        for _ in range(MAX_TOOL_ITERATIONS):
+            response = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=messages,
+                tools=CHAT_TOOLS,
+                temperature=0.4,
+                max_tokens=500,
+            )
+            reply_message = response.choices[0].message
+
+            if not reply_message.tool_calls:
+                return {"reply": (reply_message.content or "").strip(), "source": "ai"}
+
+            messages.append({
+                "role": "assistant",
+                "content": reply_message.content,
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                    }
+                    for tc in reply_message.tool_calls
+                ],
+            })
+
+            for tc in reply_message.tool_calls:
+                name = tc.function.name
+                try:
+                    args = json.loads(tc.function.arguments or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+
+                executor = tool_executors.get(name)
+                if executor is None:
+                    result = {"error": f"Unknown tool '{name}'"}
+                else:
+                    try:
+                        result = executor(**args)
+                    except Exception as e:
+                        result = {"error": str(e)}
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result, default=str),
+                })
+
+        # Hit MAX_TOOL_ITERATIONS without a final answer — ask once more
+        # without offering tools, so the model must answer from what it has.
         response = client.chat.completions.create(
             model="deepseek-chat",
-            messages=messages,
+            messages=messages + [{"role": "user", "content": "Please answer now with what you've found."}],
             temperature=0.4,
-            max_tokens=400,
+            max_tokens=500,
         )
-        return {"reply": response.choices[0].message.content.strip(), "source": "ai"}
+        return {"reply": (response.choices[0].message.content or "").strip(), "source": "ai"}
     except Exception as e:
         print(f"[AI Fallback] Chat agent error: {e}. Returning unavailability notice.")
         return {"reply": _generate_fallback_chat_reply(message), "source": "fallback"}

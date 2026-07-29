@@ -1622,52 +1622,140 @@ class ChatRequest(BaseModel):
     history: list[ChatMessage] = []
 
 
-def _build_trail_data_snapshot() -> str:
-    """Compact text dump of every mountain and trail, rebuilt per request so
-    the chatbot always answers from the database's current contents. Small
-    enough (3 mountains, ~11 trails) to inject in full rather than needing
-    retrieval — see the note on this in ai.py.
-    """
+# ---------------------------------------------------------------------------
+# Chatbot tool executors. ai.chat_reply() knows how to run a DeepSeek
+# tool-calling loop but not how any tool actually queries data — that stays
+# here, consistent with every other DB access in this file. Each function's
+# name matches an entry in ai.CHAT_TOOLS and its kwargs match that tool's
+# declared parameters, since DeepSeek calls them by name with JSON args that
+# get unpacked directly into the matching function below.
+# ---------------------------------------------------------------------------
+
+
+def _resolve_mountain_id(mountain_name: str) -> Optional[int]:
     conn = get_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute("SELECT * FROM mountains ORDER BY mountain_id")
-    mountains = [dict(m) for m in cursor.fetchall()]
-    cursor.execute("SELECT * FROM route_waypoints ORDER BY mountain_id, sequence_order")
-    trails = [dict(t) for t in cursor.fetchall()]
+    cursor = conn.cursor()
+    cursor.execute("SELECT mountain_id FROM mountains WHERE mountain_name ILIKE %s LIMIT 1", (f"%{mountain_name}%",))
+    row = cursor.fetchone()
     cursor.close()
     conn.close()
+    return row[0] if row else None
 
-    trails_by_mountain: dict[int, list] = {}
-    for t in trails:
-        trails_by_mountain.setdefault(t["mountain_id"], []).append(t)
 
-    lines = []
-    for m in mountains:
-        lines.append(
-            f"- {m['mountain_name']} ({m.get('location', '')}): terrain={m.get('terrain', '')}, "
-            f"hazards={m.get('hazards', '')}"
+def _resolve_waypoint_id(mountain_id: int, trail_name: str) -> Optional[int]:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT waypoint_id FROM route_waypoints WHERE mountain_id = %s AND name ILIKE %s LIMIT 1",
+        (mountain_id, f"%{trail_name}%"),
+    )
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row[0] if row else None
+
+
+def _tool_list_mountains(search: Optional[str] = None) -> dict:
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    if search:
+        cursor.execute("SELECT mountain_name, location, terrain, hazards FROM mountains WHERE mountain_name ILIKE %s", (f"%{search}%",))
+    else:
+        cursor.execute("SELECT mountain_name, location, terrain, hazards FROM mountains")
+    rows = [dict(r) for r in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+    return {"mountains": rows}
+
+
+def _tool_list_trails(mountain_name: str) -> dict:
+    mountain_id = _resolve_mountain_id(mountain_name)
+    if mountain_id is None:
+        return {"error": f"No mountain matching '{mountain_name}' in TaraPeak"}
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute(
+        """
+        SELECT name, difficulty, distance_from_start_km, estimated_time, elevation_m, accessibility
+        FROM route_waypoints WHERE mountain_id = %s ORDER BY sequence_order
+        """,
+        (mountain_id,),
+    )
+    trails = [dict(r) for r in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+    return {"trails": trails}
+
+
+def _tool_get_recent_trail_reports(mountain_name: str, trail_name: Optional[str] = None) -> dict:
+    mountain_id = _resolve_mountain_id(mountain_name)
+    if mountain_id is None:
+        return {"error": f"No mountain matching '{mountain_name}' in TaraPeak"}
+
+    waypoint_id = None
+    if trail_name:
+        waypoint_id = _resolve_waypoint_id(mountain_id, trail_name)
+        if waypoint_id is None:
+            return {"error": f"No trail matching '{trail_name}' on {mountain_name}"}
+
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    if waypoint_id:
+        cursor.execute(
+            "SELECT rating, condition, comment, created_at::text FROM trail_reports "
+            "WHERE waypoint_id = %s ORDER BY created_at DESC LIMIT 5",
+            (waypoint_id,),
         )
-        for t in trails_by_mountain.get(m["mountain_id"], []):
-            lines.append(
-                f"    · Trail: {t['name']} — difficulty={t.get('difficulty', '')}, "
-                f"distance={t.get('distance_from_start_km', '?')} km, "
-                f"duration={t.get('estimated_time', '?')} hours, "
-                f"elevation={t.get('elevation_m', '?')} m, "
-                f"accessibility={t.get('accessibility', 'Unspecified')}"
-            )
-    return "\n".join(lines)
+    else:
+        cursor.execute(
+            "SELECT rating, condition, comment, created_at::text FROM trail_reports "
+            "WHERE mountain_id = %s ORDER BY created_at DESC LIMIT 5",
+            (mountain_id,),
+        )
+    reports = [dict(r) for r in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+    return {"reports": reports} if reports else {"reports": [], "note": "No trail reports logged yet for this."}
+
+
+def _tool_get_cached_weather(mountain_name: str, trail_name: str, date: str) -> dict:
+    mountain_id = _resolve_mountain_id(mountain_name)
+    if mountain_id is None:
+        return {"error": f"No mountain matching '{mountain_name}' in TaraPeak"}
+    waypoint_id = _resolve_waypoint_id(mountain_id, trail_name)
+    if waypoint_id is None:
+        return {"error": f"No trail matching '{trail_name}' on {mountain_name}"}
+
+    try:
+        parsed_date = datetime.date.fromisoformat(date)
+    except ValueError:
+        return {"error": f"'{date}' isn't a valid YYYY-MM-DD date"}
+
+    forecast = get_weather_forecast(waypoint_id, parsed_date)
+    if forecast is None:
+        return {"available": False, "note": "No cached forecast for that trail/date — likely outside the ~2 week window."}
+    return {"available": True, "forecast": forecast}
+
+
+CHAT_TOOL_EXECUTORS = {
+    "list_mountains": _tool_list_mountains,
+    "list_trails": _tool_list_trails,
+    "get_recent_trail_reports": _tool_get_recent_trail_reports,
+    "get_cached_weather": _tool_get_cached_weather,
+}
 
 
 @app.post("/chat")
 def chat(payload: ChatRequest, current_user: dict = Depends(get_current_user)):
-    """Agentic trail-assistant chatbot, grounded in the app's own mountain
-    and trail data. Stateless: the frontend holds and resends history."""
+    """Agentic trail-assistant chatbot. Stateless: the frontend holds and
+    resends history; DeepSeek calls tools (above) for whatever specifics a
+    question needs instead of the app injecting the entire trail catalog."""
     if not payload.message.strip():
         raise HTTPException(status_code=400, detail="Message can't be empty")
 
-    snapshot = _build_trail_data_snapshot()
     history = [{"role": m.role, "content": m.content} for m in payload.history]
-    result = ai.chat_reply(payload.message, history, snapshot)
+    result = ai.chat_reply(payload.message, history, CHAT_TOOL_EXECUTORS)
     return result
 
 
