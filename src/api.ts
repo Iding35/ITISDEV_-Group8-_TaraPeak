@@ -53,8 +53,13 @@ export interface Plan {
   terrain: string;
   hazards: string | null;
   status?: string;
-  checkpoint_id?: number;      
+  checkpoint_id?: number;
   checkpoint_name?: string;
+  // Returned by both GET /plans and GET /plans/{id} (main.py casts
+  // completed_at/completion_time to ::text so they serialize as strings).
+  is_completed?: boolean;
+  completion_time?: string;
+  completed_at?: string;
 }
 
 export interface GearItem {
@@ -100,9 +105,6 @@ export interface DetailedPlan extends Plan {
   ai_difficulty_analysis: string | null;
   ai_safety_analysis: string | null;
   ai_route_plan: string | null;
-  is_completed?: boolean;
-  completion_time?: string;
-  completed_at?: string;
   notes?: string | null;
 }
 
@@ -143,6 +145,27 @@ export interface WeatherForecast {
 export interface WeatherCheckResponse {
   date_valid: boolean;
   forecast: WeatherForecast | null;
+}
+
+export interface ClimateBaselineYear {
+  year: number;
+  avg_temperature: number | null;
+  avg_humidity: number | null;
+  avg_wind_speed: number | null;
+  avg_precipitation: number | null;
+}
+
+export interface WeatherBaseline {
+  waypoint_id: number;
+  month: number;
+  years_requested: number[];
+  trend: ClimateBaselineYear[];
+  baseline: {
+    avg_temperature: number | null;
+    avg_humidity: number | null;
+    avg_wind_speed: number | null;
+    avg_precipitation: number | null;
+  } | null;
 }
 
 export interface Waypoint {
@@ -205,8 +228,26 @@ export interface PopularityDriver {
   mountain_name: string;
   total_plans: number;
   difficulty: string;
+  accessibility: string;
   avg_rating: number | null;
   distance: number;
+}
+
+export interface DiagnosticGroupRow {
+  times_selected: number;
+  avg_rating: number | null;
+  report_count: number;
+  difficulty?: string;
+  terrain?: string;
+  accessibility?: string;
+}
+
+export interface DiagnosticCorrelations {
+  by_difficulty: DiagnosticGroupRow[];
+  by_terrain: DiagnosticGroupRow[];
+  by_accessibility: DiagnosticGroupRow[];
+  narrative: string;
+  source: 'ai' | 'fallback';
 }
 
 export interface AdminUserView {
@@ -269,6 +310,21 @@ export async function fetchMountains(search = ''): Promise<Mountain[]> {
   const url = search ? `${API_URL}/get?search=${encodeURIComponent(search)}` : `${API_URL}/get`;
   const response = await fetch(url);
   if (!response.ok) throw new Error('Network response was not ok');
+  return response.json();
+}
+
+export interface MountainTrailStats {
+  mountain_id: number;
+  date: string;
+  crowd_count: number;
+  avg_completion_minutes: number | null;
+  completions_logged: number;
+}
+
+export async function fetchMountainTrailStats(mountainId: number, targetDate?: string): Promise<MountainTrailStats> {
+  const params = targetDate ? `?date=${targetDate}` : '';
+  const response = await fetch(`${API_URL}/mountains/${mountainId}/trail-stats${params}`);
+  if (!response.ok) throw await extractError(response, 'Could not load trail stats');
   return response.json();
 }
 
@@ -497,6 +553,68 @@ export async function checkWeather(
   return response.json();
 }
 
+export interface SafetyChecklistItem {
+  item: string;
+  reason: string;
+  is_critical: boolean;
+}
+
+export interface PrescriptiveSafety {
+  mountain_id: number;
+  waypoint_id: number;
+  security_index: number;
+  risk_label: string;
+  reasons: string[];
+  summary: string;
+  checklist: SafetyChecklistItem[];
+  source: 'ai' | 'fallback';
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatReply {
+  reply: string;
+  source: 'ai' | 'fallback';
+}
+
+export async function sendChatMessage(message: string, history: ChatMessage[]): Promise<ChatReply> {
+  const response = await fetch(`${API_URL}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ message, history }),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not reach the assistant');
+  return response.json();
+}
+
+export async function fetchPrescriptiveSafety(
+  mountainId: number,
+  waypointId: number,
+  hikingDate?: string
+): Promise<PrescriptiveSafety> {
+  const params = new URLSearchParams({ mountain_id: String(mountainId), waypoint_id: String(waypointId) });
+  if (hikingDate) params.set('date', hikingDate);
+  const response = await fetch(`${API_URL}/prescriptive/safety-index?${params}`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw await extractError(response, 'Could not generate the safety checklist');
+  return response.json();
+}
+
+export async function fetchWeatherBaseline(
+  mountainId: number,
+  waypointId: number,
+  targetDate: string
+): Promise<WeatherBaseline> {
+  const params = new URLSearchParams({ mountain_id: String(mountainId), waypoint_id: String(waypointId), date: targetDate });
+  const response = await fetch(`${API_URL}/predictive/weather-baseline?${params}`);
+  if (!response.ok) throw await extractError(response, 'Could not load historical weather baseline');
+  return response.json();
+}
+
 export async function fetchWaypoints(mountainId: number): Promise<Waypoint[]> {
   const response = await fetch(`${API_URL}/waypoints/${mountainId}`);
   if (!response.ok) throw await extractError(response, 'Could not load route data');
@@ -690,6 +808,12 @@ export async function fetchHikersByDate(mountainId: number, date: string): Promi
 export async function fetchPopularityDrivers(): Promise<PopularityDriver[]> {
   const res = await fetch(`${API_URL}/analytics/popularity-drivers`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load popularity drivers');
+  return res.json();
+}
+
+export async function fetchDiagnosticCorrelations(): Promise<DiagnosticCorrelations> {
+  const res = await fetch(`${API_URL}/analytics/diagnostic-correlations`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load diagnostic correlations');
   return res.json();
 }
 
