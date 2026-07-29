@@ -36,18 +36,18 @@ INSERT INTO weather_forecasts (mountain_id, hiking_date, temperature, humidity, 
 # below references them positionally. Reordering one without the other silently
 # attaches checkpoints to the wrong trail.
 WAYPOINTS_SEED_SQL = """
-INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km, total_hikers) VALUES
-(1, 1, 'Ambacao Paway Ridge', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5, 15),
-(1, 2, 'Ampucao Trailhead', 'One of the main access points to the Mount Ulap Eco-Trail, featuring registration facilities and the first panoramic views of the Itogon ridgelines.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5, 25),
-(1, 3, 'Mount Ulap Eco-Trail','The official hiking route of Mount Ulap. This 9.4 km trail passes through scenic pine forests, the Ambanao Paway ridge, the iconic Gungal Rock, and ends at the 1,846-meter summit with panoramic views of the Cordillera mountain range.', 120.6312, 16.2904, 1846, 'Moderate', 4.5, 9.4, 60),
-(2, 1, 'Yangbew Trailhead', 'The main jump-off point for Mount Yangbew, also known as Little Pulag because of its grassland scenery resembling Mount Pulag.', 120.607052, 16.453989, 1446, 'Easy', 0.30, 3.2, 10),
-(2, 2, 'Grassland Ridge', 'An open grassland section offering panoramic views of La Trinidad Valley and the surrounding mountains.', 120.5906, 16.4580, 1510, 'Easy', 0.3, 1.2, 20),
-(2, 3, 'Rock Formation Viewpoint', 'A popular photo stop featuring natural rock formations overlooking the valley below.', 120.5925, 16.4605, 1560, 'Easy', 0.7, 2.3, 30),
-(2, 4, 'Mount Yangbew Summit', 'The summit of Mount Yangbew offers breathtaking sunrise and sunset views over La Trinidad and Baguio City.', 120.5940, 16.4622, 1609, 'Easy', 1.1, 3.3, 40),
-(3, 1, 'Ambangeg Trail', 'The most popular and beginner-friendly trail to Mount Pulag, often called the "Artista Trail". The summit is typically reached in 3 to 4 hours.', 121.08612, 16.52075, 2250, 'Easy', 4.0, 7.0, 50),
-(3, 2, 'Tawangan Trail', 'A scenic trail passing through traditional Ibaloi communities, mossy forests, and grasslands before reaching the summit.', 120.89917, 16.5975, 2200, 'Moderate', 18.0, 12.0, 20),
-(3, 3, 'Akiki Trail', 'Known as the "Killer Trail", Akiki is recommended for experienced hikers due to its steep ascents and multi-day trek.', 120.8992, 16.5975, 2260, 'Hard', 14.0, 20.4, 20),
-(3, 4, 'Ambaguio Trail', 'A less frequently used route approaching Mount Pulag from Nueva Vizcaya, known for its long forest sections.', 121.0564, 16.5794, 2150, 'Hard', 24.0, 16.0, 10);
+INSERT INTO route_waypoints (mountain_id, sequence_order, name, description, longitude, latitude, elevation_m, difficulty, estimated_time, distance_from_start_km, total_hikers, accessibility) VALUES
+(1, 1, 'Ambacao Paway Ridge', 'A scenic ridge offering panoramic views of the surrounding mountains and valleys.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5, 15, 'Paved Road Access'),
+(1, 2, 'Ampucao Trailhead', 'One of the main access points to the Mount Ulap Eco-Trail, featuring registration facilities and the first panoramic views of the Itogon ridgelines.', 120.6358, 16.2947, 1520, 'Easy', 0.2, 0.5, 25, 'Paved Road Access'),
+(1, 3, 'Mount Ulap Eco-Trail','The official hiking route of Mount Ulap. This 9.4 km trail passes through scenic pine forests, the Ambanao Paway ridge, the iconic Gungal Rock, and ends at the 1,846-meter summit with panoramic views of the Cordillera mountain range.', 120.6312, 16.2904, 1846, 'Moderate', 4.5, 9.4, 60, 'Unpaved Trailhead'),
+(2, 1, 'Yangbew Trailhead', 'The main jump-off point for Mount Yangbew, also known as Little Pulag because of its grassland scenery resembling Mount Pulag.', 120.607052, 16.453989, 1446, 'Easy', 0.30, 3.2, 10, 'Paved Road Access'),
+(2, 2, 'Grassland Ridge', 'An open grassland section offering panoramic views of La Trinidad Valley and the surrounding mountains.', 120.5906, 16.4580, 1510, 'Easy', 0.3, 1.2, 20, 'Paved Road Access'),
+(2, 3, 'Rock Formation Viewpoint', 'A popular photo stop featuring natural rock formations overlooking the valley below.', 120.5925, 16.4605, 1560, 'Easy', 0.7, 2.3, 30, 'Paved Road Access'),
+(2, 4, 'Mount Yangbew Summit', 'The summit of Mount Yangbew offers breathtaking sunrise and sunset views over La Trinidad and Baguio City.', 120.5940, 16.4622, 1609, 'Easy', 1.1, 3.3, 40, 'Unpaved Trailhead'),
+(3, 1, 'Ambangeg Trail', 'The most popular and beginner-friendly trail to Mount Pulag, often called the "Artista Trail". The summit is typically reached in 3 to 4 hours.', 121.08612, 16.52075, 2250, 'Easy', 4.0, 7.0, 50, 'Unpaved Trailhead'),
+(3, 2, 'Tawangan Trail', 'A scenic trail passing through traditional Ibaloi communities, mossy forests, and grasslands before reaching the summit.', 120.89917, 16.5975, 2200, 'Moderate', 18.0, 12.0, 20, '4x4 / High-Clearance Required'),
+(3, 3, 'Akiki Trail', 'Known as the "Killer Trail", Akiki is recommended for experienced hikers due to its steep ascents and multi-day trek.', 120.8992, 16.5975, 2260, 'Hard', 14.0, 20.4, 20, 'Remote / Difficult Access'),
+(3, 4, 'Ambaguio Trail', 'A less frequently used route approaching Mount Pulag from Nueva Vizcaya, known for its long forest sections.', 121.0564, 16.5794, 2150, 'Hard', 24.0, 16.0, 10, 'Remote / Difficult Access');
 """
 
 CHECKPOINTS_SEED_SQL = """
@@ -309,6 +309,41 @@ def init_db():
     )
     cursor.execute("ALTER TABLE mountains ADD COLUMN IF NOT EXISTS hazards VARCHAR(300)")
     cursor.execute("ALTER TABLE route_waypoints ADD COLUMN IF NOT EXISTS total_hikers INT DEFAULT 0")
+    cursor.execute("ALTER TABLE route_waypoints ADD COLUMN IF NOT EXISTS accessibility VARCHAR(50)")
+
+    # Failed-login tracking used by auth.py's lockout check.
+    cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS login_attempts INT NOT NULL DEFAULT 0")
+    cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP NULL")
+
+    # Roles were originally free-text ('user'/'admin'). Normalize to the
+    # hiker/admin/registrar vocabulary and enforce it going forward — signup
+    # relies on this DEFAULT since it never sets role explicitly.
+    cursor.execute("UPDATE users SET role = 'hiker' WHERE role = 'user'")
+    cursor.execute("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'hiker'")
+    cursor.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint WHERE conname = 'users_role_check'
+            ) THEN
+                ALTER TABLE users ADD CONSTRAINT users_role_check
+                    CHECK (role IN ('hiker', 'admin', 'registrar'));
+            END IF;
+        END $$;
+    """)
+
+    # Backfill accessibility for trails seeded before the column existed,
+    # using difficulty as a rough proxy so nothing is left NULL.
+    cursor.execute("""
+        UPDATE route_waypoints
+        SET accessibility = CASE difficulty
+            WHEN 'Easy' THEN 'Paved Road Access'
+            WHEN 'Moderate' THEN 'Unpaved Trailhead'
+            WHEN 'Hard' THEN 'Remote / Difficult Access'
+            ELSE 'Unpaved Trailhead'
+        END
+        WHERE accessibility IS NULL
+    """)
 
     for column, ddl in [
         ("waypoint_id", "INT REFERENCES route_waypoints(waypoint_id)"),
@@ -318,8 +353,52 @@ def init_db():
         ("ai_route_plan", "TEXT"),
         ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
         ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        # The "mark plan completed" feature (PATCH /plans/{id}/complete,
+        # checkpoint tracking, most-taken-trails/avg-completion-time
+        # analytics) was added to tarapeak.sql's CREATE TABLE but never
+        # migrated onto an existing database — every one of those endpoints
+        # was throwing UndefinedColumn.
+        ("checkpoint_id", "INT REFERENCES trail_checkpoints(checkpoint_id) ON DELETE SET NULL"),
+        ("notes", "TEXT NULL"),
+        ("is_completed", "BOOLEAN DEFAULT FALSE"),
+        ("completion_time", "INTERVAL NULL"),
+        ("completed_at", "TIMESTAMP NULL"),
     ]:
         cursor.execute(f"ALTER TABLE plans ADD COLUMN IF NOT EXISTS {column} {ddl}")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS plan_checkpoints (
+            plan_id INT REFERENCES plans(plan_id) ON DELETE CASCADE,
+            checkpoint_id INT REFERENCES trail_checkpoints(checkpoint_id) ON DELETE CASCADE,
+            PRIMARY KEY (plan_id, checkpoint_id)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS weather_climate_baseline (
+            baseline_id SERIAL PRIMARY KEY,
+            waypoint_id INT NOT NULL REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE,
+            year INT NOT NULL,
+            month INT NOT NULL CHECK (month BETWEEN 1 AND 12),
+            avg_temperature DECIMAL(4,1),
+            avg_humidity INT,
+            avg_wind_speed DECIMAL(4,1),
+            avg_precipitation DECIMAL(5,1),
+            fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT weather_baseline_unique UNIQUE (waypoint_id, year, month)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS plan_completed_checkpoints (
+            plan_checkpoint_id SERIAL PRIMARY KEY,
+            plan_id INT NOT NULL REFERENCES plans(plan_id) ON DELETE CASCADE,
+            checkpoint_id INT NOT NULL REFERENCES trail_checkpoints(checkpoint_id) ON DELETE CASCADE,
+            reached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT NULL,
+            CONSTRAINT uc_plan_checkpoint UNIQUE (plan_id, checkpoint_id)
+        )
+    """)
 
     # Plans predating the trail selector have no waypoint; backfill them with
     # the mountain's first trail so the NOT NULL join in /plans still matches.
@@ -360,16 +439,78 @@ def init_db():
         END $$;
     """)
 
+    # weather_forecasts predates the waypoint-level refactor: get_weather_forecast()
+    # and save_weather_forecast() have keyed on waypoint_id for a while, but no
+    # migration ever added that column (or precipitation/weather_code) to an
+    # existing database — every weather read/write was throwing
+    # UndefinedColumn on any DB created before that refactor.
+    cursor.execute("ALTER TABLE weather_forecasts ADD COLUMN IF NOT EXISTS waypoint_id INT")
+    cursor.execute("ALTER TABLE weather_forecasts ADD COLUMN IF NOT EXISTS precipitation DECIMAL(5,1)")
+    cursor.execute("ALTER TABLE weather_forecasts ADD COLUMN IF NOT EXISTS weather_code INT")
+
+    # Backfill: old rows only recorded mountain_id, so attribute them to that
+    # mountain's first trail (arbitrary but deterministic) rather than drop them.
+    cursor.execute("""
+        UPDATE weather_forecasts w
+        SET waypoint_id = sub.waypoint_id
+        FROM (
+            SELECT DISTINCT ON (mountain_id) mountain_id, waypoint_id
+            FROM route_waypoints
+            ORDER BY mountain_id, sequence_order
+        ) sub
+        WHERE w.waypoint_id IS NULL AND w.mountain_id = sub.mountain_id
+    """)
+
     cursor.execute("""
         DO $$
         BEGIN
             IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint WHERE conname = 'weather_unique'
+                SELECT 1 FROM pg_constraint WHERE conname = 'weather_fk_waypoints'
             ) THEN
-                ALTER TABLE weather_forecasts ADD CONSTRAINT weather_unique UNIQUE (mountain_id, hiking_date);
+                ALTER TABLE weather_forecasts ADD CONSTRAINT weather_fk_waypoints
+                    FOREIGN KEY (waypoint_id) REFERENCES route_waypoints(waypoint_id) ON DELETE CASCADE;
             END IF;
         END $$;
     """)
+
+    # weather_unique may already exist from before the refactor, targeting
+    # (mountain_id, hiking_date) — checking existence by name alone (as this
+    # used to) leaves that stale constraint in place forever, so every
+    # ON CONFLICT (waypoint_id, hiking_date) upsert keeps failing. Verify the
+    # constraint actually covers the columns the app upserts on, and rebuild
+    # it if not.
+    cursor.execute("""
+        SELECT array_agg(a.attname ORDER BY k.ord)
+        FROM pg_constraint c
+        JOIN unnest(c.conkey) WITH ORDINALITY AS k(attnum, ord) ON true
+        JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
+        WHERE c.conname = 'weather_unique'
+        GROUP BY c.oid
+    """)
+    row = cursor.fetchone()
+    current_cols = row[0] if row else None
+    if current_cols != ["waypoint_id", "hiking_date"]:
+        if current_cols is not None:
+            cursor.execute("ALTER TABLE weather_forecasts DROP CONSTRAINT weather_unique")
+        cursor.execute(
+            "ALTER TABLE weather_forecasts ADD CONSTRAINT weather_unique UNIQUE (waypoint_id, hiking_date)"
+        )
+
+    # Demo registrar account for testing POST /trails/create without granting
+    # full admin access. Seeded here too since the INSERT in tarapeak.sql only
+    # runs on a brand-new database.
+    cursor.execute(
+        """
+        INSERT INTO users (first_name, last_name, username, email, password, hiker_experience, role)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (email) DO NOTHING
+        """,
+        (
+            "Rio", "Domingo", "rio.domingo", "registrar@tarapeak.com",
+            "$2b$12$gujVneZjqDPAPAr.cBmS1.QL2nZc7bKU8j/GyB.4k8LLLANdnZk2e",
+            "expert", "registrar",
+        ),
+    )
     conn.commit()
 
     cursor.execute("SELECT COUNT(*) FROM route_waypoints")
@@ -546,3 +687,51 @@ def create_notification(
         """,
         (user_id, title, message, type_, reference_id),
     )
+
+
+def get_climate_baseline_years(waypoint_id: int, month: int, years: list) -> list:
+    """Whichever of the requested years are already cached for this
+    waypoint/month. The predictive endpoint only re-fetches the gap."""
+    if not years:
+        return []
+    conn = get_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute(
+        """
+        SELECT year, avg_temperature, avg_humidity, avg_wind_speed, avg_precipitation
+        FROM weather_climate_baseline
+        WHERE waypoint_id = %s AND month = %s AND year = ANY(%s)
+        ORDER BY year
+        """,
+        (waypoint_id, month, years),
+    )
+    rows = [dict(r) for r in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+    return rows
+
+
+def save_climate_baseline_year(waypoint_id: int, year: int, month: int, averages: dict) -> None:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO weather_climate_baseline
+            (waypoint_id, year, month, avg_temperature, avg_humidity, avg_wind_speed, avg_precipitation)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (waypoint_id, year, month) DO UPDATE
+        SET avg_temperature = EXCLUDED.avg_temperature,
+            avg_humidity = EXCLUDED.avg_humidity,
+            avg_wind_speed = EXCLUDED.avg_wind_speed,
+            avg_precipitation = EXCLUDED.avg_precipitation,
+            fetched_at = CURRENT_TIMESTAMP
+        """,
+        (
+            waypoint_id, year, month,
+            averages.get("avg_temperature"), averages.get("avg_humidity"),
+            averages.get("avg_wind_speed"), averages.get("avg_precipitation"),
+        ),
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
