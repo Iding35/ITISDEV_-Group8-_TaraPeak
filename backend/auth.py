@@ -14,6 +14,9 @@ JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24 * 7
 
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_MINUTES = 15
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -95,8 +98,7 @@ def generate_username(cursor, email: str) -> str:
         candidate = f"{base}{suffix}"
 
 
-@router.post("/signup")
-def signup(payload: SignupRequest):
+def _signup(payload: SignupRequest):
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
@@ -132,24 +134,68 @@ def signup(payload: SignupRequest):
     return {"token": token, "user": user}
 
 
+@router.post("/signup")
+def signup(payload: SignupRequest):
+    return _signup(payload)
+
+
+@router.post("/register")
+def register(payload: SignupRequest):
+    """Alias of /auth/signup — same handler, kept under the literal spec name."""
+    return _signup(payload)
+
+
 @router.post("/login")
 def login(payload: LoginRequest):
     conn = get_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    cursor.execute(
-        "SELECT user_id, first_name, last_name, username, email, hiker_experience, role, password "
-        "FROM users WHERE email = %s",
-        (payload.email,),
-    )
-    user = cursor.fetchone()
-    cursor.close()
-    conn.close()
+    try:
+        cursor.execute(
+            "SELECT user_id, first_name, last_name, username, email, hiker_experience, role, "
+            "password, login_attempts, locked_until "
+            "FROM users WHERE email = %s",
+            (payload.email,),
+        )
+        user = cursor.fetchone()
 
-    if not user or not verify_password(payload.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
+        # Checked before the password so a locked-out account fails fast
+        # without a bcrypt compare, and so the lockout applies even to correct
+        # passwords entered while it's active.
+        if user and user["locked_until"] and user["locked_until"] > datetime.now():
+            minutes_left = max(1, int((user["locked_until"] - datetime.now()).total_seconds() // 60) + 1)
+            raise HTTPException(
+                status_code=423,
+                detail=f"Too many failed attempts. Try again in {minutes_left} minute(s).",
+            )
+
+        if not user or not verify_password(payload.password, user["password"]):
+            if user:
+                attempts = user["login_attempts"] + 1
+                locked_until = (
+                    datetime.now() + timedelta(minutes=LOCKOUT_MINUTES)
+                    if attempts >= MAX_LOGIN_ATTEMPTS
+                    else None
+                )
+                cursor.execute(
+                    "UPDATE users SET login_attempts = %s, locked_until = %s WHERE user_id = %s",
+                    (attempts, locked_until, user["user_id"]),
+                )
+                conn.commit()
+            raise HTTPException(status_code=401, detail="Incorrect email or password")
+
+        cursor.execute(
+            "UPDATE users SET login_attempts = 0, locked_until = NULL WHERE user_id = %s",
+            (user["user_id"],),
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
 
     user = dict(user)
     del user["password"]
+    del user["login_attempts"]
+    del user["locked_until"]
 
     token = create_token(user["user_id"])
     return {"token": token, "user": user}
