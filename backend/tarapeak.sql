@@ -385,8 +385,9 @@ INSERT INTO users (first_name, last_name, username, email, password, hiker_exper
 ('John', 'Doe', 'john.doe', 'john.doe@example.com', '$2b$12$XAN4i.zDasHrQ1L5GP.zV.IgBbFzcVb.AnA07picJ8srjSsXMRVnG', 'expert', 'hiker'),
 ('Elena', 'Cruz', 'elena.cruz', 'elena.cruz@example.com', '$2b$12$ohavHqkSIE7eXgC70vtPbuGZ4.c8Vv/EvHbXjK6jInWXb4x830oum', 'beginner','hiker'),
 ('Ramon', 'Reyes', 'ramon.reyes', 'ramon.reyes@example.com', '$2b$12$He0BBjubopiXw9mctoHjD.XgAvO1GvB7eD9QRTjCx9c4cryIMyHVy', 'intermediate', 'hiker'),
-('Cheska', 'Martinez', 'admin', 'admin@tarapeak.com', '$2b$12$33zauXWVwEOUUAMYDH.Y.uUQOKa5jaynXXNGeZPOaBnDaWvk2jQCi', 'expert','admin'),
+('Cheska', 'Martinez', 'admin', 'admin@tarapeak.com', '$2b$12$GI7OZe78bfU/ovv9V/rW8.CRZLD4svJ9NLw79xXQVFZU8.uKmPuD6', 'expert','admin'),
 ('Rio', 'Domingo', 'rio.domingo', 'registrar@tarapeak.com', '$2b$12$gujVneZjqDPAPAr.cBmS1.QL2nZc7bKU8j/GyB.4k8LLLANdnZk2e', 'expert','registrar');
+-- admin@tarapeak.com password: admin1234
 -- registrar@tarapeak.com password: registrar123
 
 UPDATE users SET created_at = '2025-01-15 10:00:00' WHERE email = 'alex.rivera@example.com';

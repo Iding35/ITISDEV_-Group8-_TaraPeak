@@ -496,20 +496,28 @@ def init_db():
             "ALTER TABLE weather_forecasts ADD CONSTRAINT weather_unique UNIQUE (waypoint_id, hiking_date)"
         )
 
-    # Demo registrar account for testing POST /trails/create without granting
-    # full admin access. Seeded here too since the INSERT in tarapeak.sql only
-    # runs on a brand-new database.
-    cursor.execute(
+    # Demo admin + registrar accounts. Seeded here too (not just in
+    # tarapeak.sql's fresh-install INSERT) since a database that reached this
+    # migration path skips that INSERT entirely — this is how the app ended
+    # up with no admin account at all despite one being in the seed file.
+    cursor.executemany(
         """
         INSERT INTO users (first_name, last_name, username, email, password, hiker_experience, role)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (email) DO NOTHING
         """,
-        (
-            "Rio", "Domingo", "rio.domingo", "registrar@tarapeak.com",
-            "$2b$12$gujVneZjqDPAPAr.cBmS1.QL2nZc7bKU8j/GyB.4k8LLLANdnZk2e",
-            "expert", "registrar",
-        ),
+        [
+            (
+                "Cheska", "Martinez", "admin", "admin@tarapeak.com",
+                "$2b$12$GI7OZe78bfU/ovv9V/rW8.CRZLD4svJ9NLw79xXQVFZU8.uKmPuD6",
+                "expert", "admin",
+            ),
+            (
+                "Rio", "Domingo", "rio.domingo", "registrar@tarapeak.com",
+                "$2b$12$gujVneZjqDPAPAr.cBmS1.QL2nZc7bKU8j/GyB.4k8LLLANdnZk2e",
+                "expert", "registrar",
+            ),
+        ],
     )
     conn.commit()
 
