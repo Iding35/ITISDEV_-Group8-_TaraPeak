@@ -140,9 +140,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="bg-background min-h-screen text-gray-800">
-      <div className="print:hidden">
-        <AdminNavbar />
-      </div>
+      <AdminNavbar />
 
       <main className="max-w-7xl mx-auto px-6 py-8 print:px-0 print:py-0 print:max-w-none">
         <div className="hidden print:block mb-6 border-b pb-4">

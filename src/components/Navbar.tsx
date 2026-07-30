@@ -11,7 +11,8 @@ const RETRACT_AFTER_PX = 80;
 /** Ignore scroll jitter below this delta so the bar doesn't flicker. */
 const SCROLL_DELTA_PX = 6;
 
-const iconProps = {
+/** Shared stroke style so any navbar variant's custom icons (e.g. AdminNavbar's) match these. */
+export const iconProps = {
   width: 22,
   height: 22,
   viewBox: '0 0 24 24',
@@ -32,7 +33,8 @@ function CompassIcon() {
   );
 }
 
-function GridIcon() {
+/** Exported for reuse — AdminNavbar's "Dashboard" tab is conceptually the same icon. */
+export function GridIcon() {
   return (
     <svg {...iconProps}>
       <rect x="3" y="3" width="7.5" height="9" rx="1.5" />
@@ -79,11 +81,16 @@ function LogoutIcon() {
   );
 }
 
-const NAV_ITEMS: { to: string; label: string; icon: ReactNode }[] = [
+export interface NavItem {
+  to: string;
+  label: string;
+  icon: ReactNode;
+}
+
+const HIKER_NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Explore', icon: <CompassIcon /> },
   { to: '/planner', label: 'Plan a Hike', icon: <MountainIcon /> },
-  { to: '/dashboard', label: 'Dashboard', icon: <GridIcon /> }
-  
+  { to: '/dashboard', label: 'Dashboard', icon: <GridIcon /> },
 ];
 
 function useCompactNav() {
@@ -235,7 +242,28 @@ function NavLink({
   );
 }
 
-export default function Navbar() {
+export interface NavbarProps {
+  /** Defaults to the hiker-facing tabs (Explore/Plan a Hike/Dashboard). */
+  items?: NavItem[];
+  /** Where the logo links to — hiker pages go home, AdminNavbar goes to /admin. */
+  homeHref?: string;
+  homeLabel?: string;
+  /** Where "Log out" sends you afterward. Hiker pages default to home. */
+  logoutRedirect?: string;
+}
+
+/**
+ * The single navbar implementation for every logged-in surface. AdminNavbar
+ * is a thin wrapper around this with its own `items` and `homeHref` — same
+ * scroll-collapsing icon nav, notification bell, and logo hover-zoom, just a
+ * different tab set, so the two can't drift out of sync the way they had.
+ */
+export default function Navbar({
+  items = HIKER_NAV_ITEMS,
+  homeHref = '/',
+  homeLabel = 'TaraPeak home',
+  logoutRedirect = '/',
+}: NavbarProps = {}) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -270,20 +298,20 @@ export default function Navbar() {
 
   function handleLogout() {
     logout();
-    navigate('/');
+    navigate(logoutRedirect);
   }
 
   const notificationLabel =
     unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications';
 
   return (
-    <header className="bg-surface/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
+    <header className="bg-surface/80 backdrop-blur-md sticky top-0 z-50 shadow-sm print:hidden">
       {/* Three tracks so the nav sits on the true centre of the bar. With
           justify-between the nav's position drifts with the logo's width. */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center h-header w-full px-margin-desktop">
         <Link
-          to="/"
-          aria-label="TaraPeak home"
+          to={homeHref}
+          aria-label={homeLabel}
           className="group justify-self-start inline-flex rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
           <MountainWordmark />
@@ -291,7 +319,7 @@ export default function Navbar() {
 
         {/* Icons are compact enough to keep the nav on small screens too. */}
         <nav aria-label="Main" className="flex items-center gap-base justify-self-center">
-          {NAV_ITEMS.map((item) => (
+          {items.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
